@@ -1,0 +1,1 @@
+This folder contains the entity classes for the EduX application.
