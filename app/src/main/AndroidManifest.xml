@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -13,7 +17,61 @@
         android:theme="@style/Theme.EduX"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+        android:name=".fragments.Admin.StudentDetailActivity"
+        android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.TeacherDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.SubjectDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.AddSubjectActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.AddTeacherActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.AddStudentActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.ManageSubjectActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.ManageTeacherActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.ManageStudentActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.Admin.AdminActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.SubjectActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.NotificationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.ChangePasswordActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.ForgotPasswordActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.QuizActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.SettingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.User.ProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.LoginActivity"
+            android:exported="false" />
+        <activity
+            android:name=".fragments.IntroActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -21,6 +79,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".fragments.User.MainActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
