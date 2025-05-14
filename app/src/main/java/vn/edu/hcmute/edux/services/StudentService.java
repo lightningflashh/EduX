@@ -1,22 +1,18 @@
 package vn.edu.hcmute.edux.services;
 
 import androidx.annotation.NonNull;
-
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
+import vn.edu.hcmute.edux.model.EUserRole;
+import vn.edu.hcmute.edux.model.Student;
+import vn.edu.hcmute.edux.model.StudyMaterial;
+import vn.edu.hcmute.edux.model.Subject;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
-import vn.edu.hcmute.edux.model.EUserRole;
-import vn.edu.hcmute.edux.model.Student;
-import vn.edu.hcmute.edux.model.StudyMaterial;
-import vn.edu.hcmute.edux.model.Subject;
-
 
 public class StudentService {
 
@@ -44,19 +40,21 @@ public class StudentService {
                             Date enrollmentDate = data.containsKey("enrollmentDate") && data.get("enrollmentDate") instanceof com.google.firebase.Timestamp ?
                                     ((com.google.firebase.Timestamp) data.get("enrollmentDate")).toDate() : null;
 
-                            // Convert joinedClasses from List<Map> to List<Subject>
-                            List<Map<String, Object>> joinedClassesRaw = data.containsKey("joinedClasses") ?
-                                    (List<Map<String, Object>>) data.get("joinedClasses") : null;
+                            Object joinedClassesObj = data.get("joinedClasses");
                             List<Subject> joinedClasses = new ArrayList<>();
-                            if (joinedClassesRaw != null) {
-                                for (Map<String, Object> classData : joinedClassesRaw) {
-                                    Subject subject = new Subject(
-                                            (String) classData.get("classId"),
-                                            (String) classData.get("className"),
-                                            (String) classData.get("description"),
-                                            (List<StudyMaterial>) classData.get("materials")
-                                    );
-                                    joinedClasses.add(subject);
+                            if (joinedClassesObj instanceof Map) {
+                                Map<String, Object> joinedClassesRaw = (Map<String, Object>) joinedClassesObj;
+                                for (Map.Entry<String, Object> entry : joinedClassesRaw.entrySet()) {
+                                    if (entry.getValue() instanceof Map) {
+                                        Map<String, Object> classData = (Map<String, Object>) entry.getValue();
+                                        Subject subject = new Subject(
+                                                entry.getKey(),
+                                                (String) classData.get("className"),
+                                                (String) classData.get("description"),
+                                                (List<StudyMaterial>) classData.get("studyMaterials")
+                                        );
+                                        joinedClasses.add(subject);
+                                    }
                                 }
                             }
 
@@ -103,17 +101,30 @@ public class StudentService {
                             Date enrollmentDate = data.containsKey("enrollmentDate") && data.get("enrollmentDate") instanceof com.google.firebase.Timestamp ?
                                     ((com.google.firebase.Timestamp) data.get("enrollmentDate")).toDate() : null;
 
-                            // Convert joinedClasses from List<Map> to List<Subject>
-                            List<Map<String, Object>> joinedClassesRaw = data.containsKey("joinedClasses") ?
-                                    (List<Map<String, Object>>) data.get("joinedClasses") : null;
+                            Object joinedClassesObj = data.get("joinedClasses");
                             List<Subject> joinedClasses = new ArrayList<>();
-                            if (joinedClassesRaw != null) {
-                                for (Map<String, Object> classData : joinedClassesRaw) {
+                            if (joinedClassesObj instanceof Map) {
+                                Map<String, Object> joinedClassesRaw = (Map<String, Object>) joinedClassesObj;
+                                for (Map.Entry<String, Object> entry : joinedClassesRaw.entrySet()) {
+                                    if (entry.getValue() instanceof Map) {
+                                        Map<String, Object> classData = (Map<String, Object>) entry.getValue();
+                                        Subject subject = new Subject(
+                                                entry.getKey(),
+                                                (String) classData.get("className"),
+                                                (String) classData.get("description"),
+                                                (List<StudyMaterial>) classData.get("studyMaterials")
+                                        );
+                                        joinedClasses.add(subject);
+                                    }
+                                }
+                            } else if (joinedClassesObj instanceof List) {
+                                List<Map<String, Object>> joinedClassesList = (List<Map<String, Object>>) joinedClassesObj;
+                                for (Map<String, Object> classData : joinedClassesList) {
                                     Subject subject = new Subject(
                                             (String) classData.get("classId"),
                                             (String) classData.get("className"),
                                             (String) classData.get("description"),
-                                            (List<StudyMaterial>) classData.get("materials")
+                                            (List<StudyMaterial>) classData.get("studyMaterials")
                                     );
                                     joinedClasses.add(subject);
                                 }
@@ -152,7 +163,6 @@ public class StudentService {
                     if (document.exists()) {
                         Student student = document.toObject(Student.class);
                         if (student != null && student.getJoinedClasses() != null) {
-                            // Remove student references from subjects
                             for (Subject subject : student.getJoinedClasses()) {
                                 db.collection("subjects").document(subject.getClassId())
                                         .collection("students")
@@ -160,7 +170,6 @@ public class StudentService {
                                         .delete();
                             }
                         }
-                        // Delete student
                         db.collection("students").document(studentId)
                                 .delete()
                                 .addOnSuccessListener(aVoid -> onSuccess.accept(null))
@@ -170,5 +179,70 @@ public class StudentService {
                     }
                 })
                 .addOnFailureListener(e -> onFailure.accept("Lỗi khi kiểm tra sinh viên: " + e.getMessage()));
+    }
+
+    public void loadSubjects(String userId, String classNameFilter, Consumer<List<Subject>> onSuccess, Consumer<Exception> onError) {
+        db.collection("students").whereEqualTo("userID", userId)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        if (task.getResult().isEmpty()) {
+                            onError.accept(new Exception("Không tìm thấy sinh viên với userID: " + userId));
+                            return;
+                        }
+                        DocumentSnapshot studentDoc = task.getResult().getDocuments().get(0);
+                        Object joinedClassesObj = studentDoc.get("joinedClasses");
+                        List<Subject> subjects = new ArrayList<>();
+
+                        if (joinedClassesObj instanceof Map) {
+                            Map<String, Object> joinedClassesRaw = (Map<String, Object>) joinedClassesObj;
+                            if (joinedClassesRaw != null && !joinedClassesRaw.isEmpty()) {
+                                for (Map.Entry<String, Object> entry : joinedClassesRaw.entrySet()) {
+                                    if (entry.getValue() instanceof Map) {
+                                        Map<String, Object> classData = (Map<String, Object>) entry.getValue();
+                                        String className = (String) classData.get("className");
+                                        if (className == null) {
+                                            continue;
+                                        }
+
+                                        if (classNameFilter == null || classNameFilter.isEmpty() ||
+                                                className.toLowerCase().contains(classNameFilter.toLowerCase())) {
+                                            Subject subject = new Subject(
+                                                    entry.getKey(),
+                                                    className,
+                                                    (String) classData.get("description"),
+                                                    (List<StudyMaterial>) classData.get("studyMaterials")
+                                            );
+                                            subjects.add(subject);
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (joinedClassesObj instanceof List) {
+                            List<Map<String, Object>> joinedClassesList = (List<Map<String, Object>>) joinedClassesObj;
+                            for (Map<String, Object> classData : joinedClassesList) {
+                                String className = (String) classData.get("className");
+                                if (className == null) {
+                                    continue;
+                                }
+
+                                if (classNameFilter == null || classNameFilter.isEmpty() ||
+                                        className.toLowerCase().contains(classNameFilter.toLowerCase())) {
+                                    Subject subject = new Subject(
+                                            (String) classData.get("classId"),
+                                            className,
+                                            (String) classData.get("description"),
+                                            (List<StudyMaterial>) classData.get("studyMaterials")
+                                    );
+                                    subjects.add(subject);
+                                }
+                            }
+                        }
+
+                        onSuccess.accept(subjects);
+                    } else {
+                        onError.accept(task.getException() != null ? task.getException() : new Exception("Lỗi không xác định khi truy vấn Firestore"));
+                    }
+                });
     }
 }
