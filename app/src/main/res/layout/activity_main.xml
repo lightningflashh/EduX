@@ -76,7 +76,7 @@
             android:id="@+id/avatar"
             android:layout_width="110dp"
             android:layout_height="110dp"
-            android:src="@drawable/img_1"
+            android:src="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.059"
