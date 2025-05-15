@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "116081663224",
+    "firebase_url": "https://faceid-9392b-default-rtdb.firebaseio.com",
+    "project_id": "faceid-9392b",
+    "storage_bucket": "faceid-9392b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:116081663224:android:ceecdd23f033690b54af0d",
+        "android_client_info": {
+          "package_name": "hcmute.edu.vn.fefinalproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALnasscgoA4jasIZKwvHzLFBt68_mJS0o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:116081663224:android:c2999feaee807c8e54af0d",
+        "android_client_info": {
+          "package_name": "vn.edu.hcmute.edux"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALnasscgoA4jasIZKwvHzLFBt68_mJS0o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
