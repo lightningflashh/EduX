@@ -17,61 +17,61 @@
         android:theme="@style/Theme.EduX"
         tools:targetApi="31">
         <activity
-        android:name=".fragments.Admin.StudentDetailActivity"
+        android:name=".activities.Admin.StudentDetailActivity"
         android:exported="false" />
         <activity
-            android:name=".fragments.Admin.TeacherDetailActivity"
+            android:name=".activities.Admin.TeacherDetailActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.SubjectDetailActivity"
+            android:name=".activities.Admin.SubjectDetailActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.AddSubjectActivity"
+            android:name=".activities.Admin.AddSubjectActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.AddTeacherActivity"
+            android:name=".activities.Admin.AddTeacherActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.AddStudentActivity"
+            android:name=".activities.Admin.AddStudentActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.ManageSubjectActivity"
+            android:name=".activities.Admin.ManageSubjectActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.ManageTeacherActivity"
+            android:name=".activities.Admin.ManageTeacherActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.ManageStudentActivity"
+            android:name=".activities.Admin.ManageStudentActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.Admin.AdminActivity"
+            android:name=".activities.Admin.AdminActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.SubjectActivity"
+            android:name=".activities.User.SubjectActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.NotificationActivity"
+            android:name=".activities.User.NotificationActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.ChangePasswordActivity"
+            android:name=".activities.User.ChangePasswordActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.ForgotPasswordActivity"
+            android:name=".activities.User.ForgotPasswordActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.QuizActivity"
+            android:name=".activities.User.QuizActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.SettingActivity"
+            android:name=".activities.User.SettingActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.User.ProfileActivity"
+            android:name=".activities.User.ProfileActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.LoginActivity"
+            android:name=".activities.LoginActivity"
             android:exported="false" />
         <activity
-            android:name=".fragments.IntroActivity"
+            android:name=".activities.IntroActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -80,7 +80,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".fragments.User.MainActivity"
+            android:name=".activities.User.MainActivity"
             android:exported="false" />
     </application>
 
