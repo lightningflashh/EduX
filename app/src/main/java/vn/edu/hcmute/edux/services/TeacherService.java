@@ -2,6 +2,7 @@ package vn.edu.hcmute.edux.services;
 
 import androidx.annotation.NonNull;
 
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -80,6 +81,77 @@ public class TeacherService {
                 });
     }
 
+    public void loadTeacherById(String userId, @NonNull Consumer<Teacher> onSuccess, @NonNull Consumer<String> onFailure) {
+        db.collection("teachers")
+                .document(userId)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        DocumentSnapshot document = task.getResult();
+                        if (document.exists()) {
+                            Map<String, Object> data = document.getData();
+
+                            Date birthDate = data.containsKey("birthDate") && data.get("birthDate") instanceof com.google.firebase.Timestamp ?
+                                    ((com.google.firebase.Timestamp) data.get("birthDate")).toDate() : null;
+                            Date createdAt = data.containsKey("createdAt") && data.get("createdAt") instanceof com.google.firebase.Timestamp ?
+                                    ((com.google.firebase.Timestamp) data.get("createdAt")).toDate() : null;
+                            Date updatedAt = data.containsKey("updatedAt") && data.get("updatedAt") instanceof com.google.firebase.Timestamp ?
+                                    ((com.google.firebase.Timestamp) data.get("updatedAt")).toDate() : null;
+
+                            Object teachingClassesObj = data.get("teachingClasses");
+                            List<Subject> teachingClasses = new ArrayList<>();
+                            if (teachingClassesObj instanceof Map) {
+                                Map<String, Object> classesRaw = (Map<String, Object>) teachingClassesObj;
+                                for (Map.Entry<String, Object> entry : classesRaw.entrySet()) {
+                                    if (entry.getValue() instanceof Map) {
+                                        Map<String, Object> classData = (Map<String, Object>) entry.getValue();
+                                        Subject subject = new Subject(
+                                                entry.getKey(),
+                                                (String) classData.get("className"),
+                                                (String) classData.get("description"),
+                                                (List<StudyMaterial>) classData.get("studyMaterials")
+                                        );
+                                        teachingClasses.add(subject);
+                                    }
+                                }
+                            } else if (teachingClassesObj instanceof List) {
+                                List<Map<String, Object>> classesList = (List<Map<String, Object>>) teachingClassesObj;
+                                for (Map<String, Object> classData : classesList) {
+                                    Subject subject = new Subject(
+                                            (String) classData.get("classId"),
+                                            (String) classData.get("className"),
+                                            (String) classData.get("description"),
+                                            (List<StudyMaterial>) classData.get("studyMaterials")
+                                    );
+                                    teachingClasses.add(subject);
+                                }
+                            }
+
+                            Teacher teacher = new Teacher(
+                                    (String) data.get("userID"),
+                                    (String) data.get("fullName"),
+                                    (String) data.get("email"),
+                                    (String) data.get("password"),
+                                    EUserRole.valueOf((String) data.get("role")),
+                                    (String) data.get("imageUrl"),
+                                    birthDate,
+                                    (Boolean) data.get("isActive"),
+                                    createdAt,
+                                    updatedAt,
+                                    (String) data.get("degree"),
+                                    teachingClasses,
+                                    (String) data.get("major")
+                            );
+                            onSuccess.accept(teacher);
+                        } else {
+                            onFailure.accept("Giảng viên không tồn tại");
+                        }
+                    } else {
+                        onFailure.accept("Lỗi khi tải thông tin giảng viên: " + task.getException().getMessage());
+                    }
+                });
+    }
+
     public void deleteTeacher(String teacherId, @NonNull Consumer<Void> onSuccess, @NonNull Consumer<String> onFailure) {
         db.collection("teachers").document(teacherId)
                 .get()
@@ -103,5 +175,70 @@ public class TeacherService {
                     }
                 })
                 .addOnFailureListener(e -> onFailure.accept("Lỗi khi kiểm tra giảng viên: " + e.getMessage()));
+    }
+
+    public void loadSubjects(String userId, String classNameFilter, Consumer<List<Subject>> onSuccess, Consumer<Exception> onError) {
+        db.collection("teachers").whereEqualTo("userID", userId)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        if (task.getResult().isEmpty()) {
+                            onError.accept(new Exception("Không tìm thấy sinh viên với userID: " + userId));
+                            return;
+                        }
+                        DocumentSnapshot studentDoc = task.getResult().getDocuments().get(0);
+                        Object teachingClassesObj = studentDoc.get("teachingClasses");
+                        List<Subject> subjects = new ArrayList<>();
+
+                        if (teachingClassesObj instanceof Map) {
+                            Map<String, Object> teachingClassesRaw = (Map<String, Object>) teachingClassesObj;
+                            if (teachingClassesRaw != null && !teachingClassesRaw.isEmpty()) {
+                                for (Map.Entry<String, Object> entry : teachingClassesRaw.entrySet()) {
+                                    if (entry.getValue() instanceof Map) {
+                                        Map<String, Object> classData = (Map<String, Object>) entry.getValue();
+                                        String className = (String) classData.get("className");
+                                        if (className == null) {
+                                            continue;
+                                        }
+
+                                        if (classNameFilter == null || classNameFilter.isEmpty() ||
+                                                className.toLowerCase().contains(classNameFilter.toLowerCase())) {
+                                            Subject subject = new Subject(
+                                                    entry.getKey(),
+                                                    className,
+                                                    (String) classData.get("description"),
+                                                    (List<StudyMaterial>) classData.get("studyMaterials")
+                                            );
+                                            subjects.add(subject);
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (teachingClassesObj instanceof List) {
+                            List<Map<String, Object>> teachingClassesList = (List<Map<String, Object>>) teachingClassesObj;
+                            for (Map<String, Object> classData : teachingClassesList) {
+                                String className = (String) classData.get("className");
+                                if (className == null) {
+                                    continue;
+                                }
+
+                                if (classNameFilter == null || classNameFilter.isEmpty() ||
+                                        className.toLowerCase().contains(classNameFilter.toLowerCase())) {
+                                    Subject subject = new Subject(
+                                            (String) classData.get("classId"),
+                                            className,
+                                            (String) classData.get("description"),
+                                            (List<StudyMaterial>) classData.get("studyMaterials")
+                                    );
+                                    subjects.add(subject);
+                                }
+                            }
+                        }
+
+                        onSuccess.accept(subjects);
+                    } else {
+                        onError.accept(task.getException() != null ? task.getException() : new Exception("Lỗi không xác định khi truy vấn Firestore"));
+                    }
+                });
     }
 }

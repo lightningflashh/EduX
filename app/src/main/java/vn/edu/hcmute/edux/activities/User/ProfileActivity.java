@@ -36,30 +36,47 @@ import java.util.Map;
 import vn.edu.hcmute.edux.R;
 import vn.edu.hcmute.edux.activities.LoginActivity;
 import vn.edu.hcmute.edux.services.StudentService;
-
+import vn.edu.hcmute.edux.services.TeacherService;
+import vn.edu.hcmute.edux.utils.UserSessionManager;
 
 public class ProfileActivity extends AppCompatActivity {
 
     private static final int PICK_IMAGE_REQUEST = 1;
     private static final String TAG = "ProfileActivity";
-
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
     private StudentService studentService;
-    private TextView fullnameTextView, mssvTextView, emailTextView, dateTextView, studyTimeTextView, majorTextView;
+    private TeacherService teacherService;
+    private TextView fullnameTextView, mssvTextView, emailTextView, dateTextView, studyTimeTextView, majorTextView, mssvLabel, studyTimeLabel;
     private ImageView avatarImageView, btnEditProfile, btnBackProfile;
+    View divider1, divider3;
     private Uri imageUri;
     private String currentImageUrl;
+
+    private String role, userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
+        role = UserSessionManager.getRole(this);
+        userId = UserSessionManager.getUserId(this);
 
+        init();
+
+        renderInfo();
+
+        btnBackProfile.setOnClickListener(v -> finish());
+
+        btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
+    }
+
+    private void init() {
         // Initialize Firebase
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         studentService = new StudentService();
+        teacherService = new TeacherService();
 
         // Initialize UI elements
         fullnameTextView = findViewById(R.id.fullname);
@@ -71,21 +88,24 @@ public class ProfileActivity extends AppCompatActivity {
         avatarImageView = findViewById(R.id.avarta);
         btnEditProfile = findViewById(R.id.btn_edit_profile);
         btnBackProfile = findViewById(R.id.btn_back_profile);
+        mssvLabel = findViewById(R.id.mssvLabel);
+        studyTimeLabel = findViewById(R.id.studyTimeLabel);
+        divider1 = findViewById(R.id.divider1);
+        divider3 = findViewById(R.id.divider3);
+    }
 
-        // Back button
-        btnBackProfile.setOnClickListener(v -> finish());
+    private void renderInfo() {
 
-        // Get current user
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser != null) {
-            fetchStudentData(currentUser.getUid());
+        if (userId != null) {
+            if ("TEACHER".equals(role)) {
+                fetchTeacherData(userId);
+            } else if ("STUDENT".equals(role)) {
+                fetchStudentData(userId);
+            }
         } else {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
         }
-
-        // Edit profile button
-        btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
     }
 
     private void fetchStudentData(String userId) {
@@ -126,50 +146,102 @@ public class ProfileActivity extends AppCompatActivity {
                 });
     }
 
+    private void fetchTeacherData(String userId) {
+        teacherService.loadTeacherById(userId,
+                teacher -> {
+                    // Update UI
+                    fullnameTextView.setText(teacher.getFullName() != null ? teacher.getFullName() : "Unknown");
+                    emailTextView.setText(teacher.getEmail() != null ? teacher.getEmail() : "N/A");
+                    majorTextView.setText(teacher.getMajor() != null ? teacher.getMajor() : "N/A");
+
+                    // Format birthDate
+                    if (teacher.getBirthDate() != null) {
+                        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                        dateTextView.setText(sdf.format(teacher.getBirthDate()));
+                    } else {
+                        dateTextView.setText("N/A");
+                    }
+
+                    // Load profile image
+                    currentImageUrl = teacher.getImageUrl();
+                    if (teacher.getImageUrl() != null && !teacher.getImageUrl().isEmpty()) {
+                        Glide.with(this).load(teacher.getImageUrl()).error(R.drawable.img_1).into(avatarImageView);
+                    } else {
+                        Glide.with(this).load(R.drawable.img_1).into(avatarImageView);
+                    }
+                    mssvLabel.setVisibility(View.GONE);
+                    mssvTextView.setVisibility(View.GONE);
+                    studyTimeLabel.setVisibility(View.GONE);
+                    studyTimeTextView.setVisibility(View.GONE);
+                    divider1.setVisibility(View.GONE);
+                    divider3.setVisibility(View.GONE);
+                },
+                error -> {
+                    Toast.makeText(this, "Lỗi khi tải thông tin giáo viên: " + error, Toast.LENGTH_SHORT).show();
+                    fullnameTextView.setText("Unknown");
+                    emailTextView.setText("N/A");
+                    majorTextView.setText("N/A");
+                    dateTextView.setText("N/A");
+                    mssvTextView.setText("");
+                    studyTimeTextView.setText("");
+                    mssvLabel.setVisibility(View.GONE);
+                    mssvTextView.setVisibility(View.GONE);
+                    studyTimeLabel.setVisibility(View.GONE);
+                    studyTimeTextView.setVisibility(View.GONE);
+                    divider1.setVisibility(View.GONE);
+                    divider3.setVisibility(View.GONE);
+                    Glide.with(this).load(R.drawable.img_1).into(avatarImageView);
+                });
+    }
+
+    private boolean isAnyEmpty(String... values) {
+        for (String val : values) {
+            if (val == null || val.trim().isEmpty()) return true;
+        }
+        return false;
+    }
+
+    private EditText createInput(String hint, String text, ConstraintLayout parent) {
+        EditText input = new EditText(this);
+        input.setId(View.generateViewId());
+        input.setHint(hint);
+        input.setText(text);
+        parent.addView(input, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
+        return input;
+    }
+
     private void showEditProfileDialog() {
         // Inflate custom dialog layout
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Edit Profile");
+        builder.setTitle("Chỉnh sửa thông tin cá nhân");
 
         // Create a layout for the dialog
         ConstraintLayout dialogLayout = new ConstraintLayout(this);
         dialogLayout.setPadding(16, 16, 16, 16);
 
         // Add EditText fields
-        EditText fullNameInput = new EditText(this);
-        fullNameInput.setId(View.generateViewId());
-        fullNameInput.setHint("Full Name");
-        fullNameInput.setText(fullnameTextView.getText());
-        dialogLayout.addView(fullNameInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
-
-        EditText emailInput = new EditText(this);
-        emailInput.setId(View.generateViewId());
-        emailInput.setHint("Email");
-        emailInput.setText(emailTextView.getText());
-        dialogLayout.addView(emailInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
+        EditText fullNameInput = createInput("Họ và tên", fullnameTextView.getText().toString(), dialogLayout);
+        EditText emailInput = createInput("Email", emailTextView.getText().toString(), dialogLayout);
 
         TextView birthDateInput = new TextView(this);
         birthDateInput.setId(View.generateViewId());
-        birthDateInput.setHint("Birth Date");
+        birthDateInput.setHint("Ngày sinh");
         birthDateInput.setText(dateTextView.getText());
         birthDateInput.setPadding(8, 8, 8, 8);
         dialogLayout.addView(birthDateInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
 
         EditText studyTimeInput = new EditText(this);
         studyTimeInput.setId(View.generateViewId());
-        studyTimeInput.setHint("Study Time");
+        studyTimeInput.setHint("Thời gian học dự kiến");
         studyTimeInput.setText(studyTimeTextView.getText());
-        dialogLayout.addView(studyTimeInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
-
-        EditText majorInput = new EditText(this);
-        majorInput.setId(View.generateViewId());
-        majorInput.setHint("Major");
-        majorInput.setText(majorTextView.getText());
-        dialogLayout.addView(majorInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
+        if (role.equals("STUDENT")) {
+            dialogLayout.addView(studyTimeInput, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
+        }
+        EditText majorInput = createInput("Chuyên ngành", majorTextView.getText().toString(), dialogLayout);
 
         Button uploadImageButton = new Button(this);
         uploadImageButton.setId(View.generateViewId());
-        uploadImageButton.setText("Pick Profile Image");
+        uploadImageButton.setText("Tải hình đại diện");
         dialogLayout.addView(uploadImageButton, new ConstraintLayout.LayoutParams(0, ConstraintLayout.LayoutParams.WRAP_CONTENT));
 
         // Set constraints
@@ -187,14 +259,18 @@ public class ProfileActivity extends AppCompatActivity {
         constraintSet.connect(birthDateInput.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
         constraintSet.connect(birthDateInput.getId(), ConstraintSet.TOP, emailInput.getId(), ConstraintSet.BOTTOM, 16);
 
-        constraintSet.connect(studyTimeInput.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
-        constraintSet.connect(studyTimeInput.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
-        constraintSet.connect(studyTimeInput.getId(), ConstraintSet.TOP, birthDateInput.getId(), ConstraintSet.BOTTOM, 16);
-
         constraintSet.connect(majorInput.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
         constraintSet.connect(majorInput.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
-        constraintSet.connect(majorInput.getId(), ConstraintSet.TOP, studyTimeInput.getId(), ConstraintSet.BOTTOM, 16);
 
+        if (role.equals("STUDENT")) {
+            constraintSet.connect(studyTimeInput.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
+            constraintSet.connect(studyTimeInput.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
+            constraintSet.connect(studyTimeInput.getId(), ConstraintSet.TOP, birthDateInput.getId(), ConstraintSet.BOTTOM, 16);
+
+            constraintSet.connect(majorInput.getId(), ConstraintSet.TOP, studyTimeInput.getId(), ConstraintSet.BOTTOM, 16);
+        } else {
+            constraintSet.connect(majorInput.getId(), ConstraintSet.TOP, birthDateInput.getId(), ConstraintSet.BOTTOM, 16);
+        }
         constraintSet.connect(uploadImageButton.getId(), ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
         constraintSet.connect(uploadImageButton.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
         constraintSet.connect(uploadImageButton.getId(), ConstraintSet.TOP, majorInput.getId(), ConstraintSet.BOTTOM, 16);
@@ -236,9 +312,13 @@ public class ProfileActivity extends AppCompatActivity {
             String newMajor = majorInput.getText().toString().trim();
 
             // Validate inputs
-            if (newFullName.isEmpty() || newEmail.isEmpty() || newBirthDateStr.isEmpty() ||
-                    newStudyTime.isEmpty() || newMajor.isEmpty()) {
-                Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show();
+            if (role.equals("STUDENT") && isAnyEmpty(newFullName, newEmail, newBirthDateStr, newStudyTime, newMajor)) {
+                Toast.makeText(this, "Vui lòng điền đầy đủ thông tin!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (role.equals("TEACHER") && isAnyEmpty(newFullName, newEmail, newBirthDateStr, newMajor)) {
+                Toast.makeText(this, "Vui lòng điền đầy đủ thông tin!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -259,19 +339,22 @@ public class ProfileActivity extends AppCompatActivity {
                 updates.put("fullName", newFullName);
                 updates.put("email", newEmail);
                 updates.put("birthDate", newBirthDate);
-                updates.put("studyTime", newStudyTime);
                 updates.put("major", newMajor);
+                if (role.equals("STUDENT")) {
+                    updates.put("studyTime", newStudyTime);
+                }
+
+                String finalImageUrl = currentImageUrl != null ? currentImageUrl : "";
                 if (imageUri != null) {
                     String imageDataUrl = convertImageToDataUrl();
                     if (imageDataUrl != null) {
-                        updates.put("imageUrl", imageDataUrl);
-                    } else {
-                        updates.put("imageUrl", currentImageUrl != null ? currentImageUrl : "");
+                        finalImageUrl = imageDataUrl;
                     }
-                } else {
-                    updates.put("imageUrl", currentImageUrl != null ? currentImageUrl : "");
                 }
-                updateStudentInFirestore(currentUser.getUid(), updates);
+                updates.put("imageUrl", finalImageUrl);
+
+                String collection = role.equals("STUDENT") ? "students" : "teachers";
+                updateInFireStore(currentUser.getUid(), collection, updates);
             }
         });
 
@@ -315,15 +398,18 @@ public class ProfileActivity extends AppCompatActivity {
         }
     }
 
-    private void updateStudentInFirestore(String userId, Map<String, Object> updates) {
-        db.collection("students").document(userId)
+    private void updateInFireStore(String userId, String collectionsPath, Map<String, Object> updates) {
+        db.collection(collectionsPath).document(userId)
                 .update(updates)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show();
-                    fetchStudentData(userId); // Refresh UI
+                    if (role.equals("STUDENT")) {
+                        fetchStudentData(userId);
+                    } else {
+                        fetchTeacherData(userId);
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to update Firestore: " + e.getMessage(), e);
                     Toast.makeText(this, "Failed to update profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }

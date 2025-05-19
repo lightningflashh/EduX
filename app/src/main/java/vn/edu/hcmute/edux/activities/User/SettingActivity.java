@@ -9,7 +9,11 @@ import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.auth.FirebaseAuth;
+
 import vn.edu.hcmute.edux.R;
+import vn.edu.hcmute.edux.activities.LoginActivity;
+import vn.edu.hcmute.edux.utils.UserSessionManager;
 
 
 public class SettingActivity extends AppCompatActivity {
@@ -39,8 +43,19 @@ public class SettingActivity extends AppCompatActivity {
             }
         });
 
+        btnLogout.setOnClickListener(v -> {
+            // Đăng xuất khỏi Firebase
+            FirebaseAuth.getInstance().signOut();
 
+            // Xoá session đã lưu
+            UserSessionManager.clearSession(this);
 
+            // Chuyển về màn Login và clear backstack
+            Intent intent = new Intent(SettingActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        });
 
 
     }
