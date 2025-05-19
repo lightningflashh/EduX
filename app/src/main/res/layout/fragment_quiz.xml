@@ -24,6 +24,17 @@
                 android:textColor="@color/black"
                 android:textSize="24sp"
                 android:textStyle="bold" />
+            <Button
+                android:id="@+id/btnCreateQuiz"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="@color/black"
+                android:text="Tạo Quiz"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:layout_gravity="end"
+                android:textStyle="bold" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/item_quiz"
