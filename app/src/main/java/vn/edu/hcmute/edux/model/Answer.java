@@ -5,6 +5,10 @@ public class Answer {
     private String content;
     private Boolean correctAnswer;
 
+    // Default constructor
+    public Answer() {
+    }
+
     // Constructor
     public Answer(String answerID, String content, Boolean correctAnswer) {
         this.answerID = answerID;

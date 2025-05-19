@@ -7,6 +7,10 @@ public class Question {
     private String content;
     private List<Answer> answers;
 
+    // Default constructor
+    public Question() {
+    }
+
     // Constructor
     public Question(String questionID, String content, List<Answer> answers) {
         this.questionID = questionID;

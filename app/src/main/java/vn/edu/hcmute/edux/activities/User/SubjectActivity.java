@@ -2,6 +2,7 @@ package vn.edu.hcmute.edux.activities.User;
 
 import android.os.Bundle;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -13,6 +14,8 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import vn.edu.hcmute.edux.R;
+import vn.edu.hcmute.edux.fragments.QuizFragment;
+import vn.edu.hcmute.edux.fragments.DocumentFragment;
 
 public class SubjectActivity extends AppCompatActivity {
 
@@ -27,55 +30,53 @@ public class SubjectActivity extends AppCompatActivity {
         setContentView(R.layout.activity_subject);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
+        init();
+
+        btnBack.setOnClickListener(v -> finish());
+
+        new TabLayoutMediator(tabLayout, viewPager,
+                (tab, position) -> tab.setText(position == 0 ? "Quiz" : "Tài liệu")
+        ).attach();
+    }
+
+    private void init() {
         btnBack = findViewById(R.id.btn_Back);
         subjectTitle = findViewById(R.id.subject_name);
         tabLayout = findViewById(R.id.tab_subject);
         viewPager = findViewById(R.id.viewSubject);
 
-        // Nhận className từ Intent
+        // Lấy dữ liệu từ Intent
         String nameSubject = getIntent().getStringExtra("name_subject");
-        String classId = getIntent().getStringExtra("class_id"); // Nếu cần sử dụng classId
+        String classId = getIntent().getStringExtra("class_id");
+
         subjectTitle.setText(nameSubject != null ? nameSubject : "Không xác định");
 
-        btnBack.setOnClickListener(v -> finish());
-
-        ViewPagerAdapter adapter = new ViewPagerAdapter(this);
+        ViewPagerAdapter adapter = new ViewPagerAdapter(this, classId);
         viewPager.setAdapter(adapter);
-        new TabLayoutMediator(tabLayout, viewPager,
-                (tab, position) -> {
-                    if (position == 0) tab.setText("Quiz");
-                    else tab.setText("Tài liệu");
-                }).attach();
     }
 
     private static class ViewPagerAdapter extends FragmentStateAdapter {
+        private final String classId;
 
-        public ViewPagerAdapter(@NonNull FragmentActivity fa) {
+        public ViewPagerAdapter(@NonNull FragmentActivity fa, String classId) {
             super(fa);
+            this.classId = classId;
         }
 
         @NonNull
         @Override
         public Fragment createFragment(int position) {
-            if (position == 0) return new QuizFragment();
-            else return new DocumentFragment();
+            Bundle bundle = new Bundle();
+            bundle.putString("class_id", classId);
+
+            Fragment fragment = (position == 0) ? new QuizFragment() : new DocumentFragment();
+            fragment.setArguments(bundle);
+            return fragment;
         }
 
         @Override
         public int getItemCount() {
             return 2;
-        }
-    }
-
-    public static class QuizFragment extends Fragment {
-        public QuizFragment() {
-            super(R.layout.fragment_quiz);
-        }
-    }
-
-    public static class DocumentFragment extends Fragment {
-        public DocumentFragment() {
-            super(R.layout.fragment_document);
         }
     }
 }
