@@ -245,4 +245,17 @@ public class StudentService {
                     }
                 });
     }
+
+    public void updateStudentEmbedding(String uid, List<Double> embedding,
+                                       Runnable onSuccess, java.util.function.Consumer<String> onFailure) {
+        db.collection("students")
+                .document(uid)
+                .update("embedding", embedding)
+                .addOnSuccessListener(unused -> {
+                    if (onSuccess != null) onSuccess.run();
+                })
+                .addOnFailureListener(e -> {
+                    if (onFailure != null) onFailure.accept(e.getMessage());
+                });
+    }
 }

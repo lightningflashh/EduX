@@ -20,7 +20,7 @@ public class SettingActivity extends AppCompatActivity {
 
     ImageView btnBack;
 
-    LinearLayout btnStatic,btnFile,btnLogout,btnChangPassword,btnSupport;
+    LinearLayout btnStatic,btnFile, btnRegisterFace, btnLogout,btnChangPassword,btnSupport;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +30,7 @@ public class SettingActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btn_Back);
         btnStatic = findViewById(R.id.btn_static);
         btnFile = findViewById(R.id.btn_file);
+        btnRegisterFace = findViewById(R.id.btn_register_face);
         btnLogout = findViewById(R.id.btn_logout);
         btnChangPassword = findViewById(R.id.btn_changePassword);
         btnSupport = findViewById(R.id.btn_support);
@@ -39,6 +40,14 @@ public class SettingActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(SettingActivity.this, ChangePasswordActivity.class);
+                startActivity(intent);
+            }
+        });
+
+        btnRegisterFace.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SettingActivity.this, RegisterFaceActivity.class);
                 startActivity(intent);
             }
         });
