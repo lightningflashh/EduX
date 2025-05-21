@@ -16,6 +16,8 @@ import com.google.android.material.tabs.TabLayoutMediator;
 import vn.edu.hcmute.edux.R;
 import vn.edu.hcmute.edux.fragments.QuizFragment;
 import vn.edu.hcmute.edux.fragments.DocumentFragment;
+import vn.edu.hcmute.edux.fragments.StudentManagerFragment;
+import vn.edu.hcmute.edux.utils.UserSessionManager;
 
 public class SubjectActivity extends AppCompatActivity {
 
@@ -23,6 +25,8 @@ public class SubjectActivity extends AppCompatActivity {
     private TextView subjectTitle;
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
+
+    private String role, userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,11 +36,33 @@ public class SubjectActivity extends AppCompatActivity {
 
         init();
 
+        role = UserSessionManager.getRole(this);
+        userId = UserSessionManager.getUserId(this);
+
+        handleRenderTabLayout();
+
         btnBack.setOnClickListener(v -> finish());
 
-        new TabLayoutMediator(tabLayout, viewPager,
-                (tab, position) -> tab.setText(position == 0 ? "Quiz" : "Tài liệu")
-        ).attach();
+
+    }
+    private void handleRenderTabLayout() {
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            if (role.equals("TEACHER")) {
+                switch (position) {
+                    case 0:
+                        tab.setText("Quiz");
+                        break;
+                    case 1:
+                        tab.setText("Tài liệu");
+                        break;
+                    case 2:
+                        tab.setText("Quản lý SV");
+                        break;
+                }
+            } else {
+                tab.setText(position == 0 ? "Quiz" : "Tài liệu");
+            }
+        }).attach();
     }
 
     private void init() {
@@ -57,10 +83,12 @@ public class SubjectActivity extends AppCompatActivity {
 
     private static class ViewPagerAdapter extends FragmentStateAdapter {
         private final String classId;
+        private final boolean isTeacher;
 
         public ViewPagerAdapter(@NonNull FragmentActivity fa, String classId) {
             super(fa);
             this.classId = classId;
+            this.isTeacher = UserSessionManager.getRole(fa).equals("TEACHER");
         }
 
         @NonNull
@@ -69,14 +97,23 @@ public class SubjectActivity extends AppCompatActivity {
             Bundle bundle = new Bundle();
             bundle.putString("class_id", classId);
 
-            Fragment fragment = (position == 0) ? new QuizFragment() : new DocumentFragment();
+            Fragment fragment;
+            if (position == 0) {
+                fragment = new QuizFragment();
+            } else if (position == 1) {
+                fragment = new DocumentFragment();
+            } else {
+                fragment = new StudentManagerFragment();
+            }
+
             fragment.setArguments(bundle);
             return fragment;
         }
 
         @Override
         public int getItemCount() {
-            return 2;
+            return isTeacher ? 3 : 2;
         }
     }
+
 }

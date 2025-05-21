@@ -1,5 +1,7 @@
 package vn.edu.hcmute.edux.services;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -10,6 +12,7 @@ import vn.edu.hcmute.edux.model.StudyMaterial;
 import vn.edu.hcmute.edux.model.Subject;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -258,4 +261,109 @@ public class StudentService {
                     if (onFailure != null) onFailure.accept(e.getMessage());
                 });
     }
+
+    // ✅ Thêm lớp vào joinedClasses nếu chưa có
+    public void addStudentToClassByMSSV(String classId, String studentCode,
+                                        @NonNull Runnable onSuccess,
+                                        @NonNull Consumer<String> onFailure) {
+        db.collection("students")
+                .whereEqualTo("studentCode", studentCode)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!snapshot.isEmpty()) {
+                        DocumentSnapshot doc = snapshot.getDocuments().get(0);
+                        String studentId = doc.getId();
+                        Student student = doc.toObject(Student.class);
+
+                        if (student == null) {
+                            onFailure.accept("Không thể đọc dữ liệu sinh viên");
+                            return;
+                        }
+
+                        List<Subject> joined = student.getJoinedClasses() != null ? student.getJoinedClasses() : new ArrayList<>();
+                        boolean alreadyJoined = joined.stream().anyMatch(s -> classId.equals(s.getClassId()));
+
+                        if (!alreadyJoined) {
+                            joined.add(new Subject(classId, "", "", null)); // Nếu bạn có thêm dữ liệu lớp, set thêm
+                            db.collection("students").document(studentId)
+                                    .update("joinedClasses", joined)
+                                    .addOnSuccessListener(unused -> onSuccess.run())
+                                    .addOnFailureListener(e -> onFailure.accept("Lỗi khi cập nhật lớp: " + e.getMessage()));
+                        } else {
+                            onFailure.accept("Sinh viên đã có trong lớp này");
+                        }
+                    } else {
+                        onFailure.accept("Không tìm thấy sinh viên với MSSV: " + studentCode);
+                    }
+                })
+                .addOnFailureListener(e -> onFailure.accept("Lỗi truy vấn sinh viên: " + e.getMessage()));
+    }
+
+    // ✅ Xoá lớp khỏi joinedClasses
+    public void removeStudentFromClassByMSSV(String classId, String studentCode,
+                                             @NonNull Runnable onSuccess,
+                                             @NonNull Consumer<String> onFailure) {
+        db.collection("students")
+                .whereEqualTo("studentCode", studentCode)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (!snapshot.isEmpty()) {
+                        DocumentSnapshot doc = snapshot.getDocuments().get(0);
+                        String studentId = doc.getId();
+                        Student student = doc.toObject(Student.class);
+
+                        if (student == null) {
+                            onFailure.accept("Không thể đọc dữ liệu sinh viên");
+                            return;
+                        }
+
+                        List<Subject> joined = student.getJoinedClasses() != null ? student.getJoinedClasses() : new ArrayList<>();
+                        List<Subject> updated = new ArrayList<>();
+                        for (Subject s : joined) {
+                            if (!classId.equals(s.getClassId())) {
+                                updated.add(s);
+                            }
+                        }
+
+                        db.collection("students").document(studentId)
+                                .update("joinedClasses", updated)
+                                .addOnSuccessListener(unused -> onSuccess.run())
+                                .addOnFailureListener(e -> onFailure.accept("Xoá lớp thất bại: " + e.getMessage()));
+                    } else {
+                        onFailure.accept("Không tìm thấy MSSV: " + studentCode);
+                    }
+                })
+                .addOnFailureListener(e -> onFailure.accept("Lỗi khi tìm sinh viên: " + e.getMessage()));
+    }
+
+    // ✅ Lọc sinh viên theo lớp từ field joinedClasses
+    public void getStudentsInClass(String classId, @NonNull StudentListCallback callback) {
+        List<Student> filteredStudents = new ArrayList<>();
+
+        db.collection("students")
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        Student student = doc.toObject(Student.class);
+                        if (student != null && student.getJoinedClasses() != null) {
+                            boolean joined = student.getJoinedClasses().stream()
+                                    .anyMatch(s -> classId.equals(s.getClassId()));
+                            if (joined) {
+                                filteredStudents.add(student);
+                            }
+                        }
+                    }
+                    Log.d("StudentService", "Filtered students: " + filteredStudents.size());
+                    callback.onSuccess(filteredStudents);
+                })
+                .addOnFailureListener(callback::onFailure);
+    }
+
+    public interface StudentListCallback {
+        void onSuccess(List<Student> students);
+        void onFailure(Exception e);
+    }
+
 }
