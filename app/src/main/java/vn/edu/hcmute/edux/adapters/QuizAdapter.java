@@ -1,5 +1,7 @@
 package vn.edu.hcmute.edux.adapters;
 
+import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 import vn.edu.hcmute.edux.R;
+import vn.edu.hcmute.edux.activities.User.FacialRecognitionActivity;
 import vn.edu.hcmute.edux.model.Quiz;
 
 public class QuizAdapter extends RecyclerView.Adapter<QuizAdapter.QuizViewHolder> {
@@ -35,12 +38,11 @@ public class QuizAdapter extends RecyclerView.Adapter<QuizAdapter.QuizViewHolder
         holder.quizTitle.setText(quiz.getTitle());
         holder.quizDuration.setText("Thời lượng: " + quiz.getDuration() + " phút");
 
-        // TODO: thêm xử lý click nếu muốn mở quiz chi tiết
         holder.itemView.setOnClickListener(v -> {
-            // Ví dụ: mở QuizDetailActivity
-            // Intent intent = new Intent(v.getContext(), QuizDetailActivity.class);
-            // intent.putExtra("quiz_id", quiz.getQuizId());
-            // v.getContext().startActivity(intent);
+            Context context = v.getContext();
+            Intent intent = new Intent(context, FacialRecognitionActivity.class);
+            intent.putExtra("quizTitle", quiz.getTitle());
+            context.startActivity(intent);
         });
     }
 
