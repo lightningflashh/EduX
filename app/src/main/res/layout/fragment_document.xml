@@ -63,10 +63,11 @@
                         android:id="@+id/chipAll"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:checkable="true"
                         android:checked="true"
                         android:text="Tất cả"
-                        android:textColor="@color/white"
-                        app:chipBackgroundColor="@color/black"
+                        android:textColor="@drawable/chip_text_selector"
+                        app:chipBackgroundColor="@drawable/chip_background_selector"
                         app:chipStrokeColor="@color/grey_200"
                         app:chipStrokeWidth="1dp" />
 
@@ -74,29 +75,10 @@
                         android:id="@+id/chipSlides"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:checkable="true"
                         android:text="Bài giảng"
-                        android:textColor="@color/black"
-                        app:chipBackgroundColor="@color/white"
-                        app:chipStrokeColor="@color/grey_200"
-                        app:chipStrokeWidth="1dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipPdf"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="PDF"
-                        android:textColor="@color/black"
-                        app:chipBackgroundColor="@color/white"
-                        app:chipStrokeColor="@color/grey_200"
-                        app:chipStrokeWidth="1dp" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipVideo"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Video"
-                        android:textColor="@color/black"
-                        app:chipBackgroundColor="@color/white"
+                        android:textColor="@drawable/chip_text_selector"
+                        app:chipBackgroundColor="@drawable/chip_background_selector"
                         app:chipStrokeColor="@color/grey_200"
                         app:chipStrokeWidth="1dp" />
 
@@ -104,9 +86,10 @@
                         android:id="@+id/chipReference"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:checkable="true"
                         android:text="Tài liệu tham khảo"
-                        android:textColor="@color/black"
-                        app:chipBackgroundColor="@color/white"
+                        android:textColor="@drawable/chip_text_selector"
+                        app:chipBackgroundColor="@drawable/chip_background_selector"
                         app:chipStrokeColor="@color/grey_200"
                         app:chipStrokeWidth="1dp" />
                 </com.google.android.material.chip.ChipGroup>
@@ -137,4 +120,17 @@
                 tools:listitem="@layout/document_item" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
+    <Button
+        android:id="@+id/uploadBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tải lên tài liệu"
+        android:layout_margin="16dp"
+        android:backgroundTint="@color/black"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

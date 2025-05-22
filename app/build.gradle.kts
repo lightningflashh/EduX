@@ -52,6 +52,9 @@ dependencies {
     implementation ("com.google.guava:guava:31.1-android")
     // TensorFlow Lite
     implementation ("org.tensorflow:tensorflow-lite:2.11.0")
+
+    implementation ("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation ("org.json:json:20210307")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
