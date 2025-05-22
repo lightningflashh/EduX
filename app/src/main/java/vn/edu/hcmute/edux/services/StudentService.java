@@ -262,7 +262,7 @@ public class StudentService {
                 });
     }
 
-    // ✅ Thêm lớp vào joinedClasses nếu chưa có
+    // Thêm lớp vào joinedClasses nếu chưa có
     public void addStudentToClassByMSSV(String classId, String studentCode,
                                         @NonNull Runnable onSuccess,
                                         @NonNull Consumer<String> onFailure) {
@@ -300,7 +300,7 @@ public class StudentService {
                 .addOnFailureListener(e -> onFailure.accept("Lỗi truy vấn sinh viên: " + e.getMessage()));
     }
 
-    // ✅ Xoá lớp khỏi joinedClasses
+    // Xoá lớp khỏi joinedClasses
     public void removeStudentFromClassByMSSV(String classId, String studentCode,
                                              @NonNull Runnable onSuccess,
                                              @NonNull Consumer<String> onFailure) {
@@ -338,7 +338,7 @@ public class StudentService {
                 .addOnFailureListener(e -> onFailure.accept("Lỗi khi tìm sinh viên: " + e.getMessage()));
     }
 
-    // ✅ Lọc sinh viên theo lớp từ field joinedClasses
+    // Lọc sinh viên theo lớp từ field joinedClasses
     public void getStudentsInClass(String classId, @NonNull StudentListCallback callback) {
         List<Student> filteredStudents = new ArrayList<>();
 
@@ -366,4 +366,26 @@ public class StudentService {
         void onFailure(Exception e);
     }
 
+    public void loadEmbedding(String userId, @NonNull Consumer<List<Double>> onSuccess, @NonNull Consumer<String> onFailure) {
+        db.collection("students")
+                .document(userId)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        DocumentSnapshot document = task.getResult();
+                        if (document.exists()) {
+                            List<Double> embedding = (List<Double>) document.get("embedding");
+                            if (embedding != null) {
+                                onSuccess.accept(embedding);
+                            } else {
+                                onFailure.accept("Embedding không tồn tại");
+                            }
+                        } else {
+                            onFailure.accept("Sinh viên không tồn tại");
+                        }
+                    } else {
+                        onFailure.accept("Lỗi khi tải embedding: " + task.getException().getMessage());
+                    }
+                });
+    }
 }
