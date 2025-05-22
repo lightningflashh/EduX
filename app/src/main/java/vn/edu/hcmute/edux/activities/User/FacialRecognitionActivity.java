@@ -168,7 +168,6 @@ public class FacialRecognitionActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 List<Rect> rects = new ArrayList<>();
                                 rects.add(bounds);
-//                                faceOverlay.setFaceBounds(rects, similarity, matched);
                                 faceOverlay.setFaceBounds(rects, similarity, matched, bitmap.getWidth(), bitmap.getHeight());
                             });
 
