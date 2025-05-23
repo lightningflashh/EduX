@@ -33,7 +33,7 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity {
     private RecyclerView listSubject, listNotification;
     private SubjectAdapter subjectAdapter;
-    private vn.edu.hcmute.edux.adapters.NotificationAdapter notificationAdapter;
+
     private Animation botAnim, topAnim;
     private StudentService studentService;
     private TeacherService teacherService;
@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
         // Khởi tạo RecyclerView cho thông báo
         listNotification = findViewById(R.id.list_notification);
         listNotification.setLayoutManager(new GridLayoutManager(this, 1));
-        listNotification.setAdapter(notificationAdapter);
+
     }
 
     private void fetchStudentData(String userId) {
