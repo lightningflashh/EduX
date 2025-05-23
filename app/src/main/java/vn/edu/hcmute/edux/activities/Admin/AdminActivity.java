@@ -2,6 +2,7 @@ package vn.edu.hcmute.edux.activities.Admin;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,12 +18,12 @@ import com.google.firebase.firestore.QuerySnapshot;
 import vn.edu.hcmute.edux.R;
 import vn.edu.hcmute.edux.activities.LoginActivity;
 
-
 public class AdminActivity extends AppCompatActivity {
 
     private TextView tvStudentCount, tvTeacherCount, tvSubjectCount, tvUserName;
-    private ConstraintLayout btnStudent, btnTeacher, btnClass; // Thay LinearLayout thành ConstraintLayout
+    private ConstraintLayout btnStudent, btnTeacher, btnClass;
     private CardView btnLogout;
+
     private FirebaseFirestore db;
     private FirebaseAuth auth;
 
@@ -36,6 +37,11 @@ public class AdminActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
 
+        // Kiểm tra người dùng
+        String currentEmail = auth.getCurrentUser() != null ? auth.getCurrentUser().getEmail() : "null";
+        Log.d("AdminActivity", "Current user: " + currentEmail);
+        Toast.makeText(this, "User: " + currentEmail, Toast.LENGTH_LONG).show();
+
         // Ánh xạ các view
         tvStudentCount = findViewById(R.id.tvStudentCount);
         tvTeacherCount = findViewById(R.id.tvTeacherCount);
@@ -46,7 +52,7 @@ public class AdminActivity extends AppCompatActivity {
         btnClass = findViewById(R.id.btn_class);
         btnLogout = findViewById(R.id.btnLogout);
 
-
+        // Tải dữ liệu
         loadCounts();
 
         // Xử lý sự kiện nhấn vào các nút
@@ -70,6 +76,7 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     private void loadCounts() {
+        Log.d("AdminActivity", "loadCounts started");
         // Tải tổng số sinh viên
         db.collection("students")
                 .get()
@@ -78,7 +85,13 @@ public class AdminActivity extends AppCompatActivity {
                         QuerySnapshot snapshot = task.getResult();
                         tvStudentCount.setText(String.valueOf(snapshot.size()));
                     } else {
-                        Toast.makeText(AdminActivity.this, "Lỗi khi tải số sinh viên: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                        String errorMessage = task.getException().getMessage();
+                        Log.e("FirestoreError", "Students query failed: " + errorMessage);
+                        if (errorMessage.contains("PERMISSION_DENIED")) {
+                            Toast.makeText(AdminActivity.this, "Không có quyền truy cập danh sách sinh viên", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(AdminActivity.this, "Lỗi khi tải số sinh viên: " + errorMessage, Toast.LENGTH_LONG).show();
+                        }
                     }
                 });
 
@@ -90,7 +103,13 @@ public class AdminActivity extends AppCompatActivity {
                         QuerySnapshot snapshot = task.getResult();
                         tvTeacherCount.setText(String.valueOf(snapshot.size()));
                     } else {
-                        Toast.makeText(AdminActivity.this, "Lỗi khi tải số giảng viên: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                        String errorMessage = task.getException().getMessage();
+                        Log.e("FirestoreError", "Teachers query failed: " + errorMessage);
+                        if (errorMessage.contains("PERMISSION_DENIED")) {
+                            Toast.makeText(AdminActivity.this, "Không có quyền truy cập danh sách giảng viên", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(AdminActivity.this, "Lỗi khi tải số giảng viên: " + errorMessage, Toast.LENGTH_LONG).show();
+                        }
                     }
                 });
 
@@ -102,7 +121,13 @@ public class AdminActivity extends AppCompatActivity {
                         QuerySnapshot snapshot = task.getResult();
                         tvSubjectCount.setText(String.valueOf(snapshot.size()));
                     } else {
-                        Toast.makeText(AdminActivity.this, "Lỗi khi tải số lớp học: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                        String errorMessage = task.getException().getMessage();
+                        Log.e("FirestoreError", "Subjects query failed: " + errorMessage);
+                        if (errorMessage.contains("PERMISSION_DENIED")) {
+                            Toast.makeText(AdminActivity.this, "Không có quyền truy cập danh sách môn học", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(AdminActivity.this, "Lỗi khi tải số lớp học: " + errorMessage, Toast.LENGTH_LONG).show();
+                        }
                     }
                 });
     }
@@ -110,7 +135,7 @@ public class AdminActivity extends AppCompatActivity {
     private void logout() {
         auth.signOut();
         Intent intent = new Intent(AdminActivity.this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK); // Xóa toàn bộ activity stack
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
         Toast.makeText(this, "Đăng xuất thành công!", Toast.LENGTH_SHORT).show();
@@ -119,10 +144,6 @@ public class AdminActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Hàm load lại dữ liệu
         loadCounts();
     }
-
-
-
 }
