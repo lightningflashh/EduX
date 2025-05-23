@@ -24,7 +24,6 @@ import vn.edu.hcmute.edux.activities.Admin.AdminActivity;
 import vn.edu.hcmute.edux.activities.User.ForgotPasswordActivity;
 import vn.edu.hcmute.edux.activities.User.MainActivity;
 
-
 public class LoginActivity extends AppCompatActivity {
 
     TextView tvTitle, tvSubtitle, txForgotPassword;
@@ -33,7 +32,7 @@ public class LoginActivity extends AppCompatActivity {
     LottieAnimationView video_intro;
     Animation topAnim, botAnim;
 
-    private FirebaseAuth mAuth; // Firebase Auth instance
+    private FirebaseAuth mAuth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,8 +52,8 @@ public class LoginActivity extends AppCompatActivity {
         tvTitle = findViewById(R.id.tvTitle);
         video_intro = findViewById(R.id.video_intro);
         btnSignIn = findViewById(R.id.btn_sign_in);
-        etEmail = findViewById(R.id.etEmail); // Ánh xạ EditText email
-        etPassword = findViewById(R.id.etPassword); // Ánh xạ EditText password
+        etEmail = findViewById(R.id.etEmail);
+        etPassword = findViewById(R.id.etPassword);
 
         // Áp dụng animation
         tvSubtitle.setAnimation(topAnim);
@@ -74,17 +73,10 @@ public class LoginActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Kiểm tra nếu là tài khoản admin
-                if (email.equals("admin@gmail.com") && password.equals("123456")) {
-                    Intent intent = new Intent(LoginActivity.this, AdminActivity.class);
-                    startActivity(intent);
-                    finish();
-                } else {
-
-                    signInWithEmail(email, password);
-                }
+                signInWithEmail(email, password);
             }
         });
+
         // Xử lý sự kiện khi nhấn "Forgot Password"
         txForgotPassword.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -95,6 +87,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
     }
+
     private void signInWithEmail(String email, String password) {
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
@@ -102,7 +95,12 @@ public class LoginActivity extends AppCompatActivity {
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
                             Toast.makeText(LoginActivity.this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                            Intent intent;
+                            if ("admin@gmail.com".equals(email)) {
+                                intent = new Intent(LoginActivity.this, AdminActivity.class);
+                            } else {
+                                intent = new Intent(LoginActivity.this, MainActivity.class);
+                            }
                             startActivity(intent);
                             finish();
                         } else {
@@ -111,5 +109,4 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 });
     }
-
 }
