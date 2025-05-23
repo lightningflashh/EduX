@@ -23,6 +23,7 @@ public class AdminActivity extends AppCompatActivity {
     private TextView tvStudentCount, tvTeacherCount, tvSubjectCount, tvUserName;
     private ConstraintLayout btnStudent, btnTeacher, btnClass;
     private CardView btnLogout;
+
     private FirebaseFirestore db;
     private FirebaseAuth auth;
 
