@@ -1,82 +1,63 @@
+
 package vn.edu.hcmute.edux.activities.User;
 
+import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.ImageFormat;
-import android.graphics.Matrix;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
+import android.graphics.*;
 import android.media.Image;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ExperimentalGetImage;
-import androidx.camera.core.ImageAnalysis;
-import androidx.camera.core.ImageProxy;
-import androidx.camera.core.Preview;
+import androidx.camera.core.*;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import vn.edu.hcmute.edux.R;
-import vn.edu.hcmute.edux.services.StudentService;
-import vn.edu.hcmute.edux.utils.FaceNetHelper;
+import vn.edu.hcmute.edux.controllers.user.FacialRecognitionController;
 import vn.edu.hcmute.edux.utils.FaceOverlayView;
+import vn.edu.hcmute.edux.views.iFacialRecognitionView;
 
-public class FacialRecognitionActivity extends AppCompatActivity {
+public class FacialRecognitionActivity extends AppCompatActivity implements iFacialRecognitionView {
 
     private PreviewView previewView;
-    private ExecutorService cameraExecutor;
-    private FaceNetHelper faceNetHelper;
     private FaceOverlayView faceOverlay;
-    private float[] registeredEmbedding;
-    private boolean matched = false;
+    private ExecutorService cameraExecutor;
+    private boolean isProcessing = false;
 
-    private StudentService studentService;
+    private FacialRecognitionController controller;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_facial_recognition);
-        init();
-        try {
-            faceNetHelper = new FaceNetHelper(this);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        loadRegisteredEmbedding();
-    }
 
-    private void init() {
         previewView = findViewById(R.id.previewView);
-        cameraExecutor = Executors.newSingleThreadExecutor();
         faceOverlay = findViewById(R.id.faceOverlay);
-        studentService = new StudentService();
+        cameraExecutor = Executors.newSingleThreadExecutor();
+
+        try {
+            controller = new FacialRecognitionController(this);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi load FaceNet", e);
+        }
+
+        String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+        controller.loadRegisteredEmbedding(userId, this::startCamera);
     }
 
     @OptIn(markerClass = ExperimentalGetImage.class)
@@ -89,23 +70,31 @@ public class FacialRecognitionActivity extends AppCompatActivity {
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
-                ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                ImageAnalysis analysis = new ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build();
 
-                imageAnalysis.setAnalyzer(cameraExecutor, imageProxy -> {
-                    if (matched || imageProxy.getImage() == null) {
+                analysis.setAnalyzer(cameraExecutor, imageProxy -> {
+                    if (isProcessing || controller.isMatched() || imageProxy.getImage() == null) {
                         imageProxy.close();
                         return;
                     }
-                    InputImage image = InputImage.fromMediaImage(
-                            imageProxy.getImage(), imageProxy.getImageInfo().getRotationDegrees());
-                    detectFace(image, imageProxy);
+
+                    isProcessing = true;
+
+                    Bitmap bitmap = imageProxyToBitmap(imageProxy);
+                    InputImage image = InputImage.fromMediaImage(imageProxy.getImage(), imageProxy.getImageInfo().getRotationDegrees());
+
+                    controller.detectFaceAndVerify(image, bitmap, (rect, sim, matched, w, h) -> {
+                        runOnUiThread(() -> faceOverlay.setFaceBounds(List.of(rect), sim, matched, w, h));
+                    }, () -> {
+                        imageProxy.close();
+                        isProcessing = false;
+                    });
                 });
 
-                CameraSelector cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA;
                 cameraProvider.unbindAll();
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
+                cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis);
 
             } catch (Exception e) {
                 Log.e("CAMERA", "Camera error", e);
@@ -113,80 +102,49 @@ public class FacialRecognitionActivity extends AppCompatActivity {
         }, ContextCompat.getMainExecutor(this));
     }
 
-    // Load the registered embedding from the database
-    private void loadRegisteredEmbedding() {
-        String userId = Objects
-                .requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        studentService.loadEmbedding(
-                userId,
-                embeddingList -> {
-                    registeredEmbedding = new float[embeddingList.size()];
-                    for (int i = 0; i < embeddingList.size(); i++) {
-                        registeredEmbedding[i] = embeddingList.get(i).floatValue();
-                    }
-                    startCamera();
-                },
-                error -> Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
-        );
+    @Override
+    public void showToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
-    private void detectFace(InputImage inputImage, ImageProxy imageProxy) {
-        // Set up the face detection options
-        // Set the performance mode to PERFORMANCE_MODE_FAST for real-time detection
-        FaceDetectorOptions options = new FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                .build();
-
-        // Google ML Kit Face Detection API for detecting faces
-        FaceDetection.getClient(options).process(inputImage)
-                .addOnSuccessListener(faces -> {
-                    if (!faces.isEmpty()) {
-                        Face face = faces.get(0);
-                        Bitmap bitmap = imageProxyToBitmap(imageProxy);
-                        if (bitmap == null) {
-                            imageProxy.close();
-                            return;
-                        }
-
-                        // Get the bounding box of the detected face and crop the face
-                        Rect bounds = face.getBoundingBox();
-                        int left = Math.max(bounds.left, 0);
-                        int top = Math.max(bounds.top, 0);
-                        int width = Math.min(bounds.width(), bitmap.getWidth() - left);
-                        int height = Math.min(bounds.height(), bitmap.getHeight() - top);
-
-                        try {
-                            Bitmap cropped = Bitmap.createBitmap(bitmap, left, top, width, height);
-                            // Get current face embedding
-                            float[] currentEmbedding = faceNetHelper.getFaceEmbedding(cropped);
-                            double similarity = cosineSimilarity(registeredEmbedding, currentEmbedding);
-                            Log.d("VERIFY", "Similarity = " + similarity);
-
-                            matched = similarity >= 0.8; // Threshold for matching
-
-                            // Draw the bounding box around the detected face
-                            runOnUiThread(() -> {
-                                List<Rect> rects = new ArrayList<>();
-                                rects.add(bounds);
-                                faceOverlay.setFaceBounds(rects, similarity, matched, bitmap.getWidth(), bitmap.getHeight());
-                            });
-
-                            if (matched) {
-                                Toast.makeText(this, "Đúng người!", Toast.LENGTH_SHORT).show();
-                                startActivity(new Intent(this, QuizActivity.class));
-                                finish();
-                            }
-                        } catch (Exception e) {
-                            Log.e("VERIFY", "Lỗi crop mặt", e);
-                        }
-                    }
-                    imageProxy.close(); // Close the image proxy after processing
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("VERIFY", "Lỗi detect face: " + e.getMessage());
-                    imageProxy.close();
-                });
+    @Override
+    public void showFaceOverlay(List<Rect> faceBounds, double similarity, boolean matched, int w, int h) {
+        faceOverlay.setFaceBounds(faceBounds, similarity, matched, w, h);
     }
+
+    @Override
+    public void navigateToQuiz() {
+        if (isFinishing() || isDestroyed()) return;
+
+        runOnUiThread(() -> {
+            showToast("Đúng người!");
+            previewView.postDelayed(() -> {
+                startActivity(new Intent(this, QuizActivity.class));
+                finish();
+            }, 600);
+        });
+    }
+
+    @Override
+    public Context getContext() {
+        return this;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        ProcessCameraProvider.getInstance(this).addListener(() -> {
+            try {
+                ProcessCameraProvider cameraProvider = ProcessCameraProvider.getInstance(this).get();
+                cameraProvider.unbindAll();
+            } catch (Exception e) {
+                Log.e("CAMERA", "Lỗi unbind", e);
+            }
+        }, ContextCompat.getMainExecutor(this));
+
+        if (cameraExecutor != null) cameraExecutor.shutdown();
+    }
+
     private Bitmap imageProxyToBitmap(ImageProxy imageProxy) {
         @SuppressWarnings("UnsafeOptInUsageError")
         Image image = imageProxy.getImage();
@@ -220,27 +178,6 @@ public class FacialRecognitionActivity extends AppCompatActivity {
         Matrix matrix = new Matrix();
         matrix.postRotate(rotationDegrees);
 
-        Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-        return rotatedBitmap;
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
     }
-
-    // Calculate cosine similarity between two vectors
-    private double cosineSimilarity(float[] vec1, float[] vec2) {
-        // cos(θ)=(A⋅B)/(∣∣A∣∣∗∣∣B∣∣)
-        // . A⋅B = Σ Ai*Bi
-        double dot = 0.0, normA = 0.0, normB = 0.0;
-        for (int i = 0; i < vec1.length; i++) {
-            dot += vec1[i] * vec2[i];
-            normA += vec1[i] * vec1[i];
-            normB += vec2[i] * vec2[i];
-        }
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (cameraExecutor != null) cameraExecutor.shutdown();
-    }
-
 }
