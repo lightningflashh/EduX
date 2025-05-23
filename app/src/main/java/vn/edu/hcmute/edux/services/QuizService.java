@@ -22,7 +22,7 @@ public class QuizService {
         this.firestore = FirebaseFirestore.getInstance();
     }
 
-    public void createQuiz(Context context, Quiz quiz, Runnable onSuccess, Runnable onFailure) {
+    public void createQuiz(Context context, Quiz quiz, Runnable onSuccess, Consumer<Exception> onFailure) {
         firestore.collection("quizzes").document(quiz.getQuizID())
                 .set(quiz)
                 .addOnSuccessListener(unused -> {
@@ -31,7 +31,7 @@ public class QuizService {
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(context, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    if (onFailure != null) onFailure.run();
+                    if (onFailure != null) onFailure.accept(e); // ✅ dùng accept()
                 });
     }
 

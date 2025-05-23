@@ -2,39 +2,31 @@ package vn.edu.hcmute.edux.activities.User;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.firestore.FirebaseFirestore;
-
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import vn.edu.hcmute.edux.R;
-import vn.edu.hcmute.edux.model.Answer;
-import vn.edu.hcmute.edux.model.EQuizStatus;
-import vn.edu.hcmute.edux.model.Question;
-import vn.edu.hcmute.edux.model.Quiz;
-import vn.edu.hcmute.edux.services.QuizService;
+import vn.edu.hcmute.edux.controllers.user.CreateQuizController;
 import vn.edu.hcmute.edux.utils.UserSessionManager;
+import vn.edu.hcmute.edux.views.iCreateQuizView;
 
-public class CreateQuizActivity extends AppCompatActivity {
+public class CreateQuizActivity extends AppCompatActivity implements iCreateQuizView {
 
     private LinearLayout questionContainer;
-    private Button btnAddQuestion, btnSubmit;
-    private ImageView btnBack;
     private EditText edtQuizName, edtQuizDescription;
     private TextView txtStartTime, txtEndTime, txtDuration;
+    private Calendar calendarStart = Calendar.getInstance(), calendarEnd = Calendar.getInstance();
 
-    private final Calendar calendarStart = Calendar.getInstance();
-    private final Calendar calendarEnd = Calendar.getInstance();
+    private CreateQuizController controller;
     private String userId, classId;
-
-    QuizService quizService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,125 +34,93 @@ public class CreateQuizActivity extends AppCompatActivity {
         setContentView(R.layout.activity_create_quiz);
 
         init();
-        addQuestionView(); // Thêm câu hỏi mặc định
+        controller = new CreateQuizController(this);
 
-        btnAddQuestion.setOnClickListener(v -> addQuestionView());
-        btnSubmit.setOnClickListener(v -> handleCreateQuiz());
-        btnBack.setOnClickListener(v -> finish());
+        addQuestionView();
+
+        findViewById(R.id.btn_add_question).setOnClickListener(v -> addQuestionView());
+        findViewById(R.id.btn_submit).setOnClickListener(v -> {
+            List<View> views = new ArrayList<>();
+            for (int i = 0; i < questionContainer.getChildCount(); i++) {
+                views.add(questionContainer.getChildAt(i));
+            }
+            controller.handleCreateQuiz(userId, classId, views);
+        });
+
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
 
         txtStartTime.setOnClickListener(v -> showDateTimePicker(calendarStart, txtStartTime));
         txtEndTime.setOnClickListener(v -> showDateTimePicker(calendarEnd, txtEndTime));
     }
 
     private void init() {
-        questionContainer = findViewById(R.id.questionContainer);
-        btnAddQuestion = findViewById(R.id.btn_add_question);
-        btnSubmit = findViewById(R.id.btn_submit);
-        btnBack = findViewById(R.id.btn_back);
         edtQuizName = findViewById(R.id.edt_quiz_name);
         edtQuizDescription = findViewById(R.id.edt_quiz_description);
         txtStartTime = findViewById(R.id.txt_start_time);
         txtEndTime = findViewById(R.id.txt_end_time);
         txtDuration = findViewById(R.id.txt_duration);
+        questionContainer = findViewById(R.id.questionContainer);
         userId = UserSessionManager.getUserId(this);
         classId = getIntent().getStringExtra("class_id");
     }
 
     private void addQuestionView() {
-        LayoutInflater inflater = LayoutInflater.from(this);
-        View questionView = inflater.inflate(R.layout.question_item, questionContainer, false);
-
-        ImageView btnRemove = questionView.findViewById(R.id.btn_remove_question);
-        btnRemove.setOnClickListener(v -> questionContainer.removeView(questionView));
-
-        questionContainer.addView(questionView);
+        View qView = LayoutInflater.from(this).inflate(R.layout.question_item, questionContainer, false);
+        qView.findViewById(R.id.btn_remove_question).setOnClickListener(v -> questionContainer.removeView(qView));
+        questionContainer.addView(qView);
     }
 
-    private void showDateTimePicker(Calendar calendar, TextView targetView) {
-        DatePickerDialog datePicker = new DatePickerDialog(this,
-                (view, year, month, day) -> {
-                    TimePickerDialog timePicker = new TimePickerDialog(this,
-                            (tpView, hour, minute) -> {
-                                calendar.set(year, month, day, hour, minute);
-                                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
-                                targetView.setText(sdf.format(calendar.getTime()));
+    private void showDateTimePicker(Calendar cal, TextView target) {
+        DatePickerDialog dp = new DatePickerDialog(this, (view, y, m, d) -> {
+            TimePickerDialog tp = new TimePickerDialog(this, (tpView, h, min) -> {
+                cal.set(y, m, d, h, min);
+                target.setText(new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(cal.getTime()));
 
-                                // Tính duration nếu đủ cả 2
-                                if (!txtStartTime.getText().toString().contains("Chọn") &&
-                                        !txtEndTime.getText().toString().contains("Chọn")) {
-                                    long duration = TimeUnit.MILLISECONDS.toMinutes(calendarEnd.getTimeInMillis() - calendarStart.getTimeInMillis());
-                                    txtDuration.setText("Thời lượng: " + duration + " phút");
-                                }
-                            }, 8, 0, true);
-                    timePicker.show();
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
-        );
-        datePicker.show();
+                if (!txtStartTime.getText().toString().contains("Chọn") &&
+                        !txtEndTime.getText().toString().contains("Chọn")) {
+                    long mins = TimeUnit.MILLISECONDS.toMinutes(calendarEnd.getTimeInMillis() - calendarStart.getTimeInMillis());
+                    txtDuration.setText("Thời lượng: " + mins + " phút");
+                }
+            }, 8, 0, true);
+            tp.show();
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
+        dp.show();
     }
 
-    private void handleCreateQuiz() {
-        String quizTitle = edtQuizName.getText().toString().trim();
-        String quizDesc = edtQuizDescription.getText().toString().trim();
+    // ==== ICreateQuizView implementation ====
 
-        if (quizTitle.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập tên quiz", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    @Override
+    public void showToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
 
-        List<Question> questionList = new ArrayList<>();
+    @Override
+    public void finishActivity() {
+        finish();
+    }
 
-        for (int i = 0; i < questionContainer.getChildCount(); i++) {
-            View questionView = questionContainer.getChildAt(i);
+    @Override
+    public String getQuizTitle() {
+        return edtQuizName.getText().toString().trim();
+    }
 
-            EditText etQuestion = questionView.findViewById(R.id.et_question);
-            EditText etA = questionView.findViewById(R.id.et_option_a);
-            EditText etB = questionView.findViewById(R.id.et_option_b);
-            EditText etC = questionView.findViewById(R.id.et_option_c);
-            EditText etD = questionView.findViewById(R.id.et_option_d);
-            RadioGroup rgAnswer = questionView.findViewById(R.id.rg_correct_answer);
+    @Override
+    public String getQuizDescription() {
+        return edtQuizDescription.getText().toString().trim();
+    }
 
-            String questionText = etQuestion.getText().toString().trim();
-            String a = etA.getText().toString().trim();
-            String b = etB.getText().toString().trim();
-            String c = etC.getText().toString().trim();
-            String d = etD.getText().toString().trim();
+    @Override
+    public Date getStartTime() {
+        return calendarStart.getTime();
+    }
 
-            int selectedId = rgAnswer.getCheckedRadioButtonId();
-            if (selectedId == -1) {
-                Toast.makeText(this, "Chưa chọn đáp án đúng ở câu " + (i + 1), Toast.LENGTH_SHORT).show();
-                return;
-            }
+    @Override
+    public Date getEndTime() {
+        return calendarEnd.getTime();
+    }
 
-            RadioButton selectedRadio = questionView.findViewById(selectedId);
-            String correctKey = selectedRadio.getText().toString().trim(); // A, B, C, D
-
-            List<Answer> answers = new ArrayList<>();
-            answers.add(new Answer("A", a, correctKey.equals("A")));
-            answers.add(new Answer("B", b, correctKey.equals("B")));
-            answers.add(new Answer("C", c, correctKey.equals("C")));
-            answers.add(new Answer("D", d, correctKey.equals("D")));
-
-            String questionId = UUID.randomUUID().toString();
-            questionList.add(new Question(questionId, questionText, answers));
-        }
-
-        // Tạo quiz object
-        String quizId = UUID.randomUUID().toString();
-        Date startTime = calendarStart.getTime();
-        Date endTime = calendarEnd.getTime();
-        long duration = TimeUnit.MILLISECONDS.toMinutes(endTime.getTime() - startTime.getTime());
-
-        Quiz quiz = new Quiz(quizId, quizTitle, quizDesc, userId, classId, startTime, endTime, duration, EQuizStatus.UPCOMING, questionList);
-
-        quizService = new QuizService();
-        quizService.createQuiz(
-                this,
-                quiz,
-                () -> finish(),  // onSuccess: đóng activity
-                null             // onFailure: không làm gì thêm
-        );
+    @Override
+    public Context getContext() {
+        return this;
     }
 }
