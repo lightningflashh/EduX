@@ -1,24 +1,19 @@
 package vn.edu.hcmute.edux.services;
 
 import android.content.Context;
-import android.database.Cursor;
 import android.net.Uri;
-import android.provider.OpenableColumns;
-
 
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import vn.edu.hcmute.edux.model.EDocumentType;
 import vn.edu.hcmute.edux.model.StudyMaterial;
-import vn.edu.hcmute.edux.utils.FirebaseHelper;
-import vn.edu.hcmute.edux.utils.UploadHelper;
+import vn.edu.hcmute.edux.services.DocumentUploadService;
+import vn.edu.hcmute.edux.utils.FileUtils;
 
 public class DocumentService {
 
@@ -32,32 +27,41 @@ public class DocumentService {
         void onError(Exception e);
     }
 
-    public void loadMaterialsForStudent(String classId, MaterialListener listener) {
-        FirebaseHelper.fetchMaterialsForClass(classId, new FirebaseHelper.OnMaterialsLoadedListener() {
-            @Override
-            public void onLoaded(List<StudyMaterial> materials) {
-                listener.onSuccess(materials);
-            }
 
-            @Override
-            public void onError(Exception e) {
-                listener.onError(e);
-            }
-        });
+    public void loadMaterialsForStudent(String classId, MaterialListener listener) {
+        fetchMaterialsFromFirestore(classId, listener);
     }
 
     public void loadMaterialsForTeacher(String classId, MaterialListener listener) {
-        FirebaseHelper.fetchMaterialsForClass(classId, new FirebaseHelper.OnMaterialsLoadedListener() {
-            @Override
-            public void onLoaded(List<StudyMaterial> materials) {
-                listener.onSuccess(materials);
-            }
+        fetchMaterialsFromFirestore(classId, listener);
+    }
 
-            @Override
-            public void onError(Exception e) {
-                listener.onError(e);
-            }
-        });
+
+    private void fetchMaterialsFromFirestore(String classId, MaterialListener listener) {
+        FirebaseFirestore.getInstance()
+                .collection("documents")
+                .whereEqualTo("classId", classId)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    List<StudyMaterial> list = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshot) {
+                        try {
+                            StudyMaterial material = new StudyMaterial(
+                                    doc.getString("materialID"),
+                                    doc.getString("title"),
+                                    doc.getString("fileURL"),
+                                    doc.getString("classId"),
+                                    doc.getString("teacherId"),
+                                    EDocumentType.valueOf(doc.getString("type")),
+                                    doc.getLong("uploadedAt")
+                            );
+                            list.add(material);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    listener.onSuccess(list);
+                })
+                .addOnFailureListener(listener::onError);
     }
 
     public void uploadMaterial(
@@ -70,19 +74,22 @@ public class DocumentService {
             SimpleListener listener
     ) {
         try {
-            File file = createTempFileFromUri(context, uri);
+            // Bước 1: Chuyển Uri thành File thực (tạo file tạm trong cache)
+            File file = FileUtils.createTempFileFromUri(context, uri);
 
-            UploadHelper.uploadToImageKitAndSaveMetadataToFirestore(
+            // Bước 2: Gọi DocumentUploadService để upload file lên ImageKit + lưu Firestore
+            DocumentUploadService.uploadToImageKitAndSaveMetadataToFirestore(
                     context,
                     file,
                     classId,
                     teacherId,
                     type,
                     title,
-                    new UploadHelper.OnUploadCompleteListener() {
+                    // Bước 3: Gửi callback báo kết quả upload về controller
+                    new DocumentUploadService.OnUploadCompleteListener() {
                         @Override
                         public void onSuccess() {
-                            listener.onSuccess();
+                            listener.onSuccess(); // → Controller xử lý: view.showMessage(), reload list,..
                         }
 
                         @Override
@@ -92,6 +99,7 @@ public class DocumentService {
                     }
             );
         } catch (Exception e) {
+            // Trường hợp lỗi khi tạo file tạm (ví dụ Uri không hợp lệ)
             listener.onError(e);
         }
     }
@@ -114,46 +122,23 @@ public class DocumentService {
                 .addOnFailureListener(listener::onError);
     }
 
-    public List<StudyMaterial> filter(List<StudyMaterial> all, EDocumentType type) {
-        if (type == null) return all;
+
+    public List<StudyMaterial> filter(List<StudyMaterial> all, EDocumentType type, String keyword) {
+        if ((type == null || type.name().isEmpty()) && (keyword == null || keyword.trim().isEmpty())) {
+            return all;
+        }
+
         List<StudyMaterial> result = new ArrayList<>();
         for (StudyMaterial m : all) {
-            if (m.getType() == type) {
+            boolean matchType = (type == null || m.getType() == type);
+            boolean matchKeyword = (keyword == null || keyword.trim().isEmpty()
+                    || m.getTitle().toLowerCase().contains(keyword.toLowerCase()));
+
+            if (matchType && matchKeyword) {
                 result.add(m);
             }
         }
         return result;
     }
 
-    private File createTempFileFromUri(Context context, Uri uri) throws Exception {
-        String fileName = getFileName(context, uri);
-        File tempFile = File.createTempFile("upload_", "_" + fileName, context.getCacheDir());
-
-        try (
-                InputStream in = context.getContentResolver().openInputStream(uri);
-                OutputStream out = new FileOutputStream(tempFile)
-        ) {
-            if (in != null && out != null) {
-                byte[] buffer = new byte[4096];
-                int read;
-                while ((read = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, read);
-                }
-            }
-        }
-        return tempFile;
-    }
-
-    private String getFileName(Context context, Uri uri) {
-        String result = "file";
-        try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                if (nameIndex >= 0) {
-                    result = cursor.getString(nameIndex);
-                }
-            }
-        }
-        return result;
-    }
 }

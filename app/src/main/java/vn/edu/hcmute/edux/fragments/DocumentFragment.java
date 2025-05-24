@@ -2,7 +2,6 @@ package vn.edu.hcmute.edux.fragments;
 
 import android.app.Activity;
 import android.content.Intent;
-
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -12,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.SearchView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -25,27 +25,22 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
-
 import vn.edu.hcmute.edux.R;
 import vn.edu.hcmute.edux.adapters.UploadAdapter;
+import vn.edu.hcmute.edux.controllers.user.DocumentController;
+import vn.edu.hcmute.edux.views.IDocumentView;
 import vn.edu.hcmute.edux.model.EDocumentType;
 import vn.edu.hcmute.edux.model.EUserRole;
-
 import vn.edu.hcmute.edux.model.StudyMaterial;
-
-import vn.edu.hcmute.edux.services.DocumentService;
-import vn.edu.hcmute.edux.utils.DownloadHelper;
-
+import vn.edu.hcmute.edux.utils.FileDownloader;
 import vn.edu.hcmute.edux.utils.UserSessionManager;
 
-public class DocumentFragment extends Fragment {
+public class DocumentFragment extends Fragment implements IDocumentView {
 
     private static final int PICK_FILE_REQUEST = 999;
-    private static final String TAG = "DocumentFragment";
 
     private RecyclerView recyclerView;
     private UploadAdapter adapter;
@@ -59,8 +54,11 @@ public class DocumentFragment extends Fragment {
     private EDocumentType currentFilter = null;
 
     private final List<StudyMaterial> allMaterials = new ArrayList<>();
-    private final DocumentService documentService = new DocumentService();
+    private DocumentController controller;
     private String pendingTitle;
+
+    private SearchView searchView;
+    private String searchKeyword = "";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -73,15 +71,29 @@ public class DocumentFragment extends Fragment {
         teacherId = UserSessionManager.getUserId(requireContext());
         isTeacher = UserSessionManager.getRole(requireContext()).equals(EUserRole.TEACHER.name());
 
+        controller = new DocumentController(this);
+
         setupRecyclerView(view);
         setupChipGroup(view);
         setupUploadButton(view);
 
-        if (isTeacher) {
-            loadMaterialsForTeacher();
-        } else {
-            loadMaterialsForStudent();
-        }
+        searchView = view.findViewById(R.id.searchView);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false; // không cần xử lý
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                searchKeyword = newText;
+                updateList(); // gọi lại adapter để hiển thị kết quả lọc mới
+                return true;
+            }
+        });
+
+
+        controller.loadMaterials(classId, isTeacher);
     }
 
     private void setupRecyclerView(View view) {
@@ -91,7 +103,8 @@ public class DocumentFragment extends Fragment {
         adapter = new UploadAdapter(getContext(), allMaterials, new UploadAdapter.OnItemClickListener() {
             @Override
             public void onDownloadClick(StudyMaterial material) {
-                DownloadHelper.downloadFile(getContext(), material.getUrl(), material.getTitle());
+                // giá trị getContext sẽ truyền vào FileDowloader
+                FileDownloader.downloadFile(getContext(), material.getUrl(), material.getTitle());
             }
 
             @Override
@@ -126,45 +139,13 @@ public class DocumentFragment extends Fragment {
         uploadBtn.setVisibility(isTeacher ? View.VISIBLE : View.GONE);
         if (isTeacher) {
             uploadBtn.setOnClickListener(v -> showCustomUploadDialog());
-
         }
     }
 
-    private void loadMaterialsForStudent() {
-        documentService.loadMaterialsForStudent(classId, new DocumentService.MaterialListener() {
-            @Override
-            public void onSuccess(List<StudyMaterial> materials) {
-                allMaterials.clear();
-                allMaterials.addAll(materials);
-                updateList();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Toast.makeText(getContext(), "Lỗi tải tài liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void loadMaterialsForTeacher() {
-        documentService.loadMaterialsForTeacher(classId, new DocumentService.MaterialListener() {
-            @Override
-            public void onSuccess(List<StudyMaterial> materials) {
-                allMaterials.clear();
-                allMaterials.addAll(materials);
-                updateList();
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Toast.makeText(getContext(), "Lỗi tải tài liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
     private void updateList() {
-        adapter.setItems(documentService.filter(allMaterials, currentFilter));
+        adapter.setItems(controller.filter(allMaterials, currentFilter, searchKeyword));
     }
+
 
     private void showCustomUploadDialog() {
         View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_document, null);
@@ -172,14 +153,13 @@ public class DocumentFragment extends Fragment {
         EditText edtTitle = dialogView.findViewById(R.id.edtTitle);
         Spinner spinnerType = dialogView.findViewById(R.id.spinnerType);
 
-        // Gán adapter cho Spinner
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
                 getContext(),
                 android.R.layout.simple_spinner_item,
                 new String[]{"Tài liệu", "Bài tập"}
         );
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerType.setAdapter(adapter);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerType.setAdapter(spinnerAdapter);
 
         AlertDialog dialog = new AlertDialog.Builder(getContext())
                 .setTitle("Thông tin tài liệu")
@@ -200,7 +180,6 @@ public class DocumentFragment extends Fragment {
                     return;
                 }
 
-                // Gán dữ liệu và mở trình chọn file
                 documentType = selectedType;
                 pendingTitle = title;
                 dialog.dismiss();
@@ -211,7 +190,6 @@ public class DocumentFragment extends Fragment {
         dialog.show();
     }
 
-
     private void pickFileToUpload(String title) {
         this.pendingTitle = title;
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -219,32 +197,18 @@ public class DocumentFragment extends Fragment {
         startActivityForResult(Intent.createChooser(intent, "Chọn file tài liệu"), PICK_FILE_REQUEST);
     }
 
+    /**
+     * Xử lý kết quả từ Intent.ACTION_GET_CONTENT,
+     * → lấy Uri của file mà user chọn
+     * → gọi controller để xử lý upload.
+     **/
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == PICK_FILE_REQUEST && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
-            documentService.uploadMaterial(
-                    requireContext(),
-                    uri,
-                    pendingTitle,
-                    classId,
-                    teacherId,
-                    documentType,
-                    new DocumentService.SimpleListener() {
-                        @Override
-                        public void onSuccess() {
-                            Toast.makeText(getContext(), "✔Tải lên thành công", Toast.LENGTH_SHORT).show();
-                            loadMaterialsForTeacher();
-                        }
-
-                        @Override
-                        public void onError(Exception e) {
-                            Toast.makeText(getContext(), "Upload thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    }
-            );
+            controller.uploadMaterial(requireContext(), uri, pendingTitle, classId, teacherId, documentType);
         }
     }
 
@@ -259,38 +223,36 @@ public class DocumentFragment extends Fragment {
                 .setView(dialogView)
                 .setPositiveButton("Cập nhật", (d, which) -> {
                     String newTitle = edtTitle.getText().toString().trim();
-                    documentService.updateTitle(material.getId(), newTitle, new DocumentService.SimpleListener() {
-                        @Override
-                        public void onSuccess() {
-                            Toast.makeText(getContext(), "Đã cập nhật", Toast.LENGTH_SHORT).show();
-                            loadMaterialsForTeacher();
-                        }
-
-                        @Override
-                        public void onError(Exception e) {
-                            Toast.makeText(getContext(), "Cập nhật thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                    controller.updateTitle(material.getId(), newTitle, classId);
                 })
                 .setNegativeButton("Huỷ", null)
                 .create();
 
         btnDelete.setOnClickListener(v -> {
-            documentService.deleteMaterial(material.getId(), new DocumentService.SimpleListener() {
-                @Override
-                public void onSuccess() {
-                    Toast.makeText(getContext(), "🗑Đã xóa tài liệu", Toast.LENGTH_SHORT).show();
-                    dialog.dismiss();
-                    loadMaterialsForTeacher();
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    Toast.makeText(getContext(), "Xóa thất bại: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
+            controller.deleteMaterial(material.getId(), classId);
+            dialog.dismiss();
         });
 
         dialog.show();
     }
+
+    // -------------- IDocumentView Implementation --------------
+
+    @Override
+    public void showMaterials(List<StudyMaterial> materials) {
+        allMaterials.clear();
+        allMaterials.addAll(materials);
+        updateList();
+    }
+
+    @Override
+    public void showMessage(String message) {
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void showError(String message) {
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+    }
+
 }

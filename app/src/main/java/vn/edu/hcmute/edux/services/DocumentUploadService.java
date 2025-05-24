@@ -1,4 +1,4 @@
-package vn.edu.hcmute.edux.utils;
+package vn.edu.hcmute.edux.services;
 
 
 import android.content.Context;
@@ -20,27 +20,35 @@ import vn.edu.hcmute.edux.model.StudyMaterial;
 import vn.edu.hcmute.edux.model.EDocumentType;
 
 
-import android.content.Context;
 import android.util.Log;
-
-import androidx.annotation.NonNull;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.HashMap;
 import java.util.Map;
 
-
-public class UploadHelper {
+/**
+ * Class xử lý việc upload file lên ImageKit + lưu metadata vào Firebase Firestore
+ */
+public class DocumentUploadService {
     private static final String TAG = "UploadHelper";
 
-
+    /**
+     * Interface callback sau khi upload hoàn tất hoặc thất bại
+     */
     public interface OnUploadCompleteListener {
         void onSuccess();
 
         void onFailure(Exception e);
     }
 
+    /**
+     * Hàm chính để upload file lên ImageKit và lưu thông tin file vào Firestore
+     *
+     * @param context   Context để dùng cho log hoặc truyền cho lib nếu cần
+     * @param file      File thực đã chuẩn bị từ Uri
+     * @param listener  Callback để xử lý sau upload (thành công/thất bại)
+     */
     public static void uploadToImageKitAndSaveMetadataToFirestore(
             Context context,
             File file,
@@ -52,15 +60,15 @@ public class UploadHelper {
     ) {
         OkHttpClient client = new OkHttpClient();
 
-        // Gọi server để lấy token upload ImageKit
+        // Gửi request để lấy token upload từ server backend riêng (bắt buộc với ImageKit)
         Request tokenRequest = new Request.Builder()
-                .url("http://10.0.2.2:8080/auth") // Thay bằng API thật
+                .url("http://10.0.2.2:8080/auth") // Localhost backend trả về token ImageKit; Thay bằng API thật
                 .build();
 
         client.newCall(tokenRequest).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                listener.onFailure(e);
+                listener.onFailure(e); // Gọi callback khi lấy token thất bại
             }
 
             @Override
@@ -72,6 +80,7 @@ public class UploadHelper {
                 }
 
                 try {
+                    // Parse JSON nhận được từ server (token + signature + publicKey + expire time)
                     JSONObject json = new JSONObject(response.body().string());
                     Log.d(TAG, "Token JSON: " + json);
                     String token = json.getString("token");
@@ -89,6 +98,7 @@ public class UploadHelper {
 
 
                     // Upload file lên ImageKit
+                    // Tạo multipart body chứa thông tin upload
                     RequestBody uploadBody = new MultipartBody.Builder()
                             .setType(MultipartBody.FORM)
                             .addFormDataPart("file", file.getName(),
@@ -100,7 +110,7 @@ public class UploadHelper {
                             .addFormDataPart("publicKey", publicKey)
                             .build();
 
-
+                    // Gửi request upload đến ImageKit
                     Request uploadRequest = new Request.Builder()
                             .url("https://upload.imagekit.io/api/v1/files/upload")
                             .post(uploadBody)
@@ -123,14 +133,16 @@ public class UploadHelper {
                             }
 
                             try {
+                                // Parse response sau khi upload thành công
                                 String uploadResp = response.body().string();
                                 Log.d(TAG, "Upload response: " + uploadResp);
 
                                 JSONObject uploadJson = new JSONObject(uploadResp);
-                                String fileUrl = uploadJson.getString("url");
+                                String fileUrl = uploadJson.getString("url"); // Lấy URL của file đã upload
 
                                 Log.d(TAG, "Upload successful. File URL: " + fileUrl);
 
+                                // Tạo model StudyMaterial để lưu vào Firestore
                                 String materialId = UUID.randomUUID().toString();
                                 long timestamp = System.currentTimeMillis();
 
@@ -143,7 +155,7 @@ public class UploadHelper {
                                         type,
                                         timestamp
                                 );
-
+                                // Gửi dữ liệu metadata lên Firebase Firestore
                                 saveMetadataToFirestore(material, listener);
 
                             } catch (JSONException e) {
@@ -161,6 +173,12 @@ public class UploadHelper {
         });
     }
 
+    /**
+     * Lưu metadata file vào Firestore sau khi upload thành công
+     *
+     * @param material  Đối tượng tài liệu đã upload xong
+     * @param listener  Callback để báo kết quả
+     */
     private static void saveMetadataToFirestore(StudyMaterial material, OnUploadCompleteListener listener) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         Log.d(TAG, "Saving metadata to Firestore: " + material.getTitle());
@@ -179,11 +197,11 @@ public class UploadHelper {
                 .set(data)
                 .addOnSuccessListener(unused -> {
                     Log.d(TAG, "Metadata saved to Firestore successfully");
-                    listener.onSuccess();
+                    listener.onSuccess(); // báo thành công cho controller
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to save metadata to Firestore", e);
-                    listener.onFailure(e);
+                    listener.onFailure(e); // báo lỗi
                 });
     }
 }
