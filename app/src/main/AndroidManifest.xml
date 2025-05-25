@@ -71,6 +71,9 @@
         <activity
             android:name=".activities.User.NotificationActivity"
             android:exported="false" />
+
+        <activity android:name=".activities.User.CreateNotificationActivity"
+            android:exported="false"/>
         <activity
             android:name=".activities.User.ChangePasswordActivity"
             android:exported="false" />

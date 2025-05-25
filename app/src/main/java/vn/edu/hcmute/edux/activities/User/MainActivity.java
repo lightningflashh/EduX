@@ -3,6 +3,7 @@ package vn.edu.hcmute.edux.activities.User;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.Animation;
@@ -28,9 +29,12 @@ import vn.edu.hcmute.edux.activities.LoginActivity;
 import vn.edu.hcmute.edux.adapters.NotificationAdapter;
 import vn.edu.hcmute.edux.adapters.SubjectAdapter;
 import vn.edu.hcmute.edux.controllers.user.MainController;
+import vn.edu.hcmute.edux.model.Notification;
 import vn.edu.hcmute.edux.model.Student;
 import vn.edu.hcmute.edux.model.Subject;
 import vn.edu.hcmute.edux.model.Teacher;
+import vn.edu.hcmute.edux.services.NotificationService;
+import vn.edu.hcmute.edux.utils.UserSessionManager;
 import vn.edu.hcmute.edux.views.iMainView;
 
 public class MainActivity extends AppCompatActivity implements iMainView {
@@ -45,6 +49,14 @@ public class MainActivity extends AppCompatActivity implements iMainView {
     private ConstraintLayout btnMenu, btnProfile, btnSetting, btnNotification, constraintNotification;
     private Animation botAnim, topAnim;
 
+    private NotificationService notificationService;
+    private List<Subject> mySubjects = new ArrayList<>();
+    private List<Notification> allNotifications = new ArrayList<>();
+
+    private static final String TAG = "MainActivity";
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +65,9 @@ public class MainActivity extends AppCompatActivity implements iMainView {
 
         initLayout();
         controller = new MainController(this);
+
+        notificationService = new NotificationService();
+
 
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {
@@ -85,13 +100,26 @@ public class MainActivity extends AppCompatActivity implements iMainView {
 
         listNotification = findViewById(R.id.list_notification);
         listNotification.setLayoutManager(new GridLayoutManager(this, 1));
-//        notificationAdapter = new NotificationAdapter(new ArrayList<>());
+
         listNotification.setAdapter(notificationAdapter);
 
         btnMenu.setOnClickListener(v -> toggleMenuVisibility());
         btnProfile.setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
         btnSetting.setOnClickListener(v -> startActivity(new Intent(this, SettingActivity.class)));
-        btnNotification.setOnClickListener(v -> toggleNotificationVisibility());
+        btnNotification.setOnClickListener(v -> {
+            String role = UserSessionManager.getRole(this);
+
+            Intent intent = new Intent(this, NotificationActivity.class);
+
+            if ("TEACHER".equals(role)) {
+                intent.putExtra("class_id", "all"); // Giáo viên → xem tất cả
+            } else {
+                intent.putExtra("class_id", "student"); // Sinh viên → xử lý riêng
+            }
+
+            startActivity(intent);
+        });
+
 
         subjectAdapter.setOnItemClickListener(subject -> {
             Intent intent = new Intent(this, SubjectActivity.class);
@@ -119,12 +147,6 @@ public class MainActivity extends AppCompatActivity implements iMainView {
         }
     }
 
-    private void toggleNotificationVisibility() {
-        boolean hidden = constraintNotification.getVisibility() == View.GONE;
-        constraintNotification.setVisibility(hidden ? View.VISIBLE : View.GONE);
-        if (hidden) constraintNotification.startAnimation(botAnim);
-    }
-
     @Override
     public void displayStudent(Student student) {
         fullnameTextView.setText(student.getFullName());
@@ -143,7 +165,9 @@ public class MainActivity extends AppCompatActivity implements iMainView {
 
     @Override
     public void updateSubjectList(List<Subject> subjects) {
+
         subjectAdapter.updateList(subjects);
+
     }
 
     @Override
