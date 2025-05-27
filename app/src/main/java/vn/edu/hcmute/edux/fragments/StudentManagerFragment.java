@@ -16,14 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import vn.edu.hcmute.edux.R;
-import vn.edu.hcmute.edux.activities.Admin.ManageStudentActivity;
 import vn.edu.hcmute.edux.adapters.StudentAdapter;
 import vn.edu.hcmute.edux.model.Student;
 import vn.edu.hcmute.edux.services.StudentService;
 
 public class StudentManagerFragment extends Fragment {
 
-    private EditText inputMSSV;
+    private EditText inputMSHV;
     private Button btnAddStudent, btnAddStudentList;
     private RecyclerView recyclerView;
     private StudentService studentService;
@@ -39,7 +38,7 @@ public class StudentManagerFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_student_manager, container, false);
 
         // Init UI
-        inputMSSV = view.findViewById(R.id.inputMSSV);
+        inputMSHV = view.findViewById(R.id.inputMSHV);
         btnAddStudent = view.findViewById(R.id.btnAddStudent);
         btnAddStudentList = view.findViewById(R.id.btnAddStudentList);
         recyclerView = view.findViewById(R.id.recyclerStudents);
@@ -57,18 +56,18 @@ public class StudentManagerFragment extends Fragment {
         loadStudents();
 
         btnAddStudent.setOnClickListener(v -> {
-            String mssv = inputMSSV.getText().toString().trim();
+            String mssv = inputMSHV.getText().toString().trim();
             if (!mssv.isEmpty()) {
                 studentService.addStudentToClassByMSSV(classId, mssv,
                         () -> {
                             Toast.makeText(getContext(), "Thêm thành công", Toast.LENGTH_SHORT).show();
-                            inputMSSV.setText("");
+                            inputMSHV.setText("");
                             loadStudents();
                         },
                         error -> Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show()
                 );
             } else {
-                Toast.makeText(getContext(), "Vui lòng nhập MSSV", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Vui lòng nhập MSHV", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -80,7 +79,7 @@ public class StudentManagerFragment extends Fragment {
                         studentService.removeStudentFromClassByMSSV(classId, student.getStudentCode(),
                             () -> {
                                 Toast.makeText(getContext(), "Xóa thành công", Toast.LENGTH_SHORT).show();
-                                inputMSSV.setText("");
+                                inputMSHV.setText("");
                                 loadStudents();
                             },
                             error -> Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show()

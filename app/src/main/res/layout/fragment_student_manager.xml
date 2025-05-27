@@ -7,10 +7,10 @@
     android:padding="16dp">
 
     <EditText
-        android:id="@+id/inputMSSV"
+        android:id="@+id/inputMSHV"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Nhập MSSV để thêm sinh viên"
+        android:hint="Nhập MSHV để thêm"
         android:inputType="text"
         android:padding="12dp"
         android:layout_marginBottom="8dp"/>
@@ -24,13 +24,13 @@
 
         <Button
             android:id="@+id/btnAddStudent"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:text="Thêm học viên"
             android:backgroundTint="@color/green"
-            android:textColor="@android:color/white"
-            android:layout_marginEnd="8dp" />
+            android:text="Thêm học viên"
+            android:textColor="@android:color/white" />
 
         <Button
             android:id="@+id/btnAddStudentList"
@@ -38,6 +38,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Thêm ds học viên"
+            android:visibility="gone"
             android:backgroundTint="#00BCD4"
             android:textColor="@android:color/white" />
     </LinearLayout>

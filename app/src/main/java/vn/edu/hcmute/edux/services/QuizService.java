@@ -31,7 +31,7 @@ public class QuizService {
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(context, "Lỗi: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    if (onFailure != null) onFailure.accept(e); // ✅ dùng accept()
+                    if (onFailure != null) onFailure.accept(e);
                 });
     }
 
