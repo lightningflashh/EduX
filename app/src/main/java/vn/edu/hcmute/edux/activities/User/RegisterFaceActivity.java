@@ -73,7 +73,7 @@ public class RegisterFaceActivity extends AppCompatActivity implements iRegister
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[]{android.Manifest.permission.CAMERA},
-                    CAMERA_PERMISSION_CODE);
+                    CAMERA_PERMISSION_CODE); // Yêu cầu quyền truy cập camera mặc định
         } else {
             openCamera();
         }
@@ -84,6 +84,7 @@ public class RegisterFaceActivity extends AppCompatActivity implements iRegister
         startActivityForResult(intent, CAMERA_REQUEST_CODE);
     }
 
+    // Lấy kết quả từ camera
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

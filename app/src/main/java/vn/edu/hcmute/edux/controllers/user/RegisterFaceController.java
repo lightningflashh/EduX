@@ -87,6 +87,7 @@ public class RegisterFaceController {
         );
     }
 
+    // Điều chỉnh bounds để đảm bảo không vượt quá kích thước bitmap
     private Rect adjustBoundsToBitmap(Rect bounds, Bitmap bitmap) {
         int left = Math.max(0, bounds.left);
         int top = Math.max(0, bounds.top);
@@ -103,6 +104,7 @@ public class RegisterFaceController {
         return new Rect(left, top, right, bottom);
     }
 
+    // Lật ảnh theo chiều ngang
     private Bitmap flipBitmapHorizontal(Bitmap src) {
         Matrix matrix = new Matrix();
         matrix.postScale(-1, 1, src.getWidth() / 2f, src.getHeight() / 2f);
