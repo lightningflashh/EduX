@@ -65,11 +65,14 @@ public class FacialRecognitionActivity extends AppCompatActivity implements iFac
         ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         cameraProviderFuture.addListener(() -> {
             try {
+                // Lấy camera provider
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
 
+                // Cấu hình preview
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
+                // Cấu hình image analysis
                 ImageAnalysis analysis = new ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build();
@@ -82,17 +85,25 @@ public class FacialRecognitionActivity extends AppCompatActivity implements iFac
 
                     isProcessing = true;
 
+                    /*
+                        Chuyển đổi ImageProxy sang Bitmap và InputImage
+                        ImageProxy là một lớp đại diện cho một khung hình (frame) nhận được từ camera trong CameraX.
+                        Nó là dạng ảnh thô (raw image) thường có định dạng như YUV_420_888.
+                     */
                     Bitmap bitmap = imageProxyToBitmap(imageProxy);
                     InputImage image = InputImage.fromMediaImage(imageProxy.getImage(), imageProxy.getImageInfo().getRotationDegrees());
 
+                    // Gọi hàm nhận diện khuôn mặt và xác minh
+                    // Tham số 3 sẽ nhận diện khuôn mặt và hiển thị overlay
                     controller.detectFaceAndVerify(image, bitmap, (rect, sim, matched, w, h) -> {
-                        runOnUiThread(() -> faceOverlay.setFaceBounds(List.of(rect), sim, matched, w, h));
+                        runOnUiThread(() -> showFaceOverlay(List.of(rect), sim, matched, w, h));
                     }, () -> {
                         imageProxy.close();
                         isProcessing = false;
                     });
                 });
 
+                // Ràng buộc lifecycle với camera
                 cameraProvider.unbindAll();
                 cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis);
 
@@ -145,6 +156,7 @@ public class FacialRecognitionActivity extends AppCompatActivity implements iFac
         if (cameraExecutor != null) cameraExecutor.shutdown();
     }
 
+    // Chuyển đổi ảnh từ ImageProxy (YUV) sang Bitmap JPEG, xoay đúng hướng
     private Bitmap imageProxyToBitmap(ImageProxy imageProxy) {
         @SuppressWarnings("UnsafeOptInUsageError")
         Image image = imageProxy.getImage();
@@ -152,6 +164,12 @@ public class FacialRecognitionActivity extends AppCompatActivity implements iFac
 
         int width = image.getWidth();
         int height = image.getHeight();
+
+        /*
+            Image ở định dạng YUV_420_888 có 3 "plane" dữ liệu:
+                Y: độ sáng (luminance)
+                U và V: màu sắc (chrominance)
+        */
 
         ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
         ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
@@ -167,13 +185,15 @@ public class FacialRecognitionActivity extends AppCompatActivity implements iFac
         vBuffer.get(nv21, ySize, vSize);
         uBuffer.get(nv21, ySize + vSize, uSize);
 
+        // Tạo một YuvImage từ mảng byte NV21 — đây là lớp hỗ trợ chuyển đổi thành JPEG (vì BitmapFactory không hiểu YUV).
         YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
-        byte[] imageBytes = out.toByteArray();
+        byte[] imageBytes = out.toByteArray(); // Lấy mảng byte JPEG đã nén (chuẩn RGB).
 
         Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
 
+        // Xoay bitmap theo độ xoay của ImageProxy
         int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
         Matrix matrix = new Matrix();
         matrix.postRotate(rotationDegrees);
