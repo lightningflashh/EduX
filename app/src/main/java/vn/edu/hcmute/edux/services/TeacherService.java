@@ -1,29 +1,29 @@
 package vn.edu.hcmute.edux.services;
 
 import androidx.annotation.NonNull;
-
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
 import vn.edu.hcmute.edux.model.EUserRole;
 import vn.edu.hcmute.edux.model.StudyMaterial;
 import vn.edu.hcmute.edux.model.Subject;
 import vn.edu.hcmute.edux.model.Teacher;
 
-
 public class TeacherService {
 
     private final FirebaseFirestore db;
+    private final FirebaseAuth auth;
 
     public TeacherService() {
         this.db = FirebaseFirestore.getInstance();
+        this.auth = FirebaseAuth.getInstance();
     }
 
     public void loadTeachers(@NonNull Consumer<List<Teacher>> onSuccess, @NonNull Consumer<String> onFailure) {
@@ -240,5 +240,52 @@ public class TeacherService {
                         onError.accept(task.getException() != null ? task.getException() : new Exception("Lỗi không xác định khi truy vấn Firestore"));
                     }
                 });
+    }
+
+    public void createTeacherAccount(String email, String password, String fullName, String major, TeacherCallback callback) {
+        auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        String userID = auth.getCurrentUser().getUid();
+
+                        // Tạo đối tượng Teacher
+                        Map<String, Object> teacher = new HashMap<>();
+                        teacher.put("userID", userID);
+                        teacher.put("email", email);
+                        teacher.put("fullName", fullName);
+                        teacher.put("password", password); // Lưu ý: Không nên lưu mật khẩu, chỉ để minh họa
+                        teacher.put("role", "TEACHER");
+                        teacher.put("imageUrl", "");
+                        teacher.put("birthDate", null);
+                        teacher.put("isActive", true);
+                        teacher.put("createdAt", new Date());
+                        teacher.put("updatedAt", new Date());
+                        teacher.put("degree", null);
+                        teacher.put("teachingClasses", null);
+                        teacher.put("major", major.isEmpty() ? null : major);
+
+                        // Lưu thông tin giảng viên vào Firestore
+                        db.collection("teachers").document(userID)
+                                .set(teacher)
+                                .addOnCompleteListener(task2 -> {
+                                    if (task2.isSuccessful()) {
+                                        callback.onComplete(true, null);
+                                    } else {
+                                        callback.onComplete(false, "Lưu thông tin thất bại: " + task2.getException().getMessage());
+                                    }
+                                });
+                    } else {
+                        callback.onComplete(false, "Tạo tài khoản thất bại: " + task.getException().getMessage());
+                    }
+                });
+    }
+    public void updateTeacher(String teacherId, Teacher teacher, Consumer<Void> onSuccess, Consumer<String> onFailure) {
+        db.collection("teachers").document(teacherId)
+                .set(teacher)
+                .addOnSuccessListener(aVoid -> onSuccess.accept(null))
+                .addOnFailureListener(e -> onFailure.accept(e.getMessage()));
+    }
+    public interface TeacherCallback {
+        void onComplete(boolean success, String message);
     }
 }

@@ -5,21 +5,18 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import vn.edu.hcmute.edux.R;
 import vn.edu.hcmute.edux.activities.User.CreateQuizActivity;
 import vn.edu.hcmute.edux.adapters.QuizAdapter;
+import vn.edu.hcmute.edux.controllers.user.QuizFragmentController;
 import vn.edu.hcmute.edux.model.Quiz;
-import vn.edu.hcmute.edux.services.QuizService;
 
 public class QuizFragment extends Fragment {
 
@@ -28,6 +25,7 @@ public class QuizFragment extends Fragment {
     private QuizAdapter adapter;
     private List<Quiz> quizList = new ArrayList<>();
     private String classId;
+    private QuizFragmentController controller;
 
     public QuizFragment() {
         super(R.layout.fragment_quiz);
@@ -39,15 +37,21 @@ public class QuizFragment extends Fragment {
 
         classId = getArguments() != null ? getArguments().getString("class_id") : null;
         if (classId == null) {
-            Toast.makeText(getContext(), "Không tìm thấy lớp học!", Toast.LENGTH_SHORT).show();
+            showToast("Không tìm thấy lớp học!");
             return;
         }
 
+        // Khởi tạo Controller
+        controller = new QuizFragmentController(this);
+
         init(view);
 
-        btnCreateQuiz.setOnClickListener(v -> handleCreateQuizButtonClick(classId));
+        // Kiểm tra vai trò người dùng và điều chỉnh hiển thị nút "Tạo Quiz"
+        controller.checkUserRole();
 
-        loadQuizListByClass(classId);
+        btnCreateQuiz.setOnClickListener(v -> controller.handleCreateQuizButtonClick(classId));
+
+        controller.loadQuizListByClass(classId);
     }
 
     private void init(View view) {
@@ -59,34 +63,32 @@ public class QuizFragment extends Fragment {
         recyclerView.setAdapter(adapter);
     }
 
-    private void handleCreateQuizButtonClick(String classId) {
+    // Phương thức để Controller cập nhật giao diện
+    public void updateQuizList(List<Quiz> quizzes) {
+        quizList.clear();
+        quizList.addAll(quizzes);
+        adapter.notifyDataSetChanged();
+    }
+
+    public void showToast(String message) {
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+    }
+
+    public void navigateToCreateQuizActivity(String classId) {
         Intent intent = new Intent(getActivity(), CreateQuizActivity.class);
         intent.putExtra("class_id", classId);
         startActivity(intent);
     }
 
-    private void loadQuizListByClass(String classId) {
-        QuizService quizService = new QuizService();
-        quizService.getQuizzesByClassId(
-                classId,
-                quizzes -> {
-                    quizList.clear();
-                    quizList.addAll(quizzes);
-                    adapter.notifyDataSetChanged();
-                },
-                error -> {
-                    Toast.makeText(getContext(), "Lỗi tải quiz: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-        );
+    public void setCreateQuizButtonVisibility(boolean isVisible) {
+        btnCreateQuiz.setVisibility(isVisible ? View.VISIBLE : View.GONE);
     }
 
     @Override
     public void onResume() {
         super.onResume();
         if (classId != null && adapter != null) {
-            loadQuizListByClass(classId);
+            controller.loadQuizListByClass(classId);
         }
     }
-
 }
-

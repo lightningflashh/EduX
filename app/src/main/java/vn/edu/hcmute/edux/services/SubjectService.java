@@ -1,24 +1,20 @@
 package vn.edu.hcmute.edux.services;
 
 import android.util.Log;
-
 import androidx.annotation.NonNull;
-
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
 import vn.edu.hcmute.edux.model.EUserRole;
 import vn.edu.hcmute.edux.model.Student;
 import vn.edu.hcmute.edux.model.StudyMaterial;
 import vn.edu.hcmute.edux.model.Subject;
 import vn.edu.hcmute.edux.model.Teacher;
-
 
 public class SubjectService {
 
@@ -44,7 +40,6 @@ public class SubjectService {
                             Date updatedAt = data.get("updatedAt") instanceof com.google.firebase.Timestamp ?
                                     ((com.google.firebase.Timestamp) data.get("updatedAt")).toDate() : null;
 
-                            // Chuyển đổi teachingClasses từ List<Map> sang List<Subject>
                             List<Map<String, Object>> teachingClassesRaw = (List<Map<String, Object>>) data.get("teachingClasses");
                             List<Subject> teachingClasses = new ArrayList<>();
                             if (teachingClassesRaw != null) {
@@ -99,8 +94,6 @@ public class SubjectService {
                             Date updatedAt = data.get("updatedAt") instanceof com.google.firebase.Timestamp ?
                                     ((com.google.firebase.Timestamp) data.get("updatedAt")).toDate() : null;
 
-
-                            // Chuyển đổi joinedClasses từ List<Map> sang List<Subject>
                             List<Map<String, Object>> joinedClassesRaw = (List<Map<String, Object>>) data.get("joinedClasses");
                             List<Subject> joinedClasses = new ArrayList<>();
                             if (joinedClassesRaw != null) {
@@ -188,6 +181,7 @@ public class SubjectService {
                 .set(updatedSubject)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        // Cập nhật danh sách teachingClasses của oldTeacher (nếu có)
                         if (oldTeacher != null && !oldTeacher.getUserID().equals(newTeacher.getUserID())) {
                             List<Subject> oldTeacherClasses = oldTeacher.getTeachingClasses() != null ?
                                     new ArrayList<>(oldTeacher.getTeachingClasses()) : new ArrayList<>();
@@ -202,20 +196,32 @@ public class SubjectService {
                                     });
                         }
 
+                        // Cập nhật danh sách teachingClasses của newTeacher
                         List<Subject> newTeacherClasses = newTeacher.getTeachingClasses() != null ?
                                 new ArrayList<>(newTeacher.getTeachingClasses()) : new ArrayList<>();
-                        if (!newTeacherClasses.contains(updatedSubject)) {
-                            newTeacherClasses.add(updatedSubject);
-                            newTeacher.setTeachingClasses(newTeacherClasses);
-                            db.collection("teachers").document(newTeacher.getUserID())
-                                    .update("teachingClasses", newTeacherClasses)
-                                    .addOnCompleteListener(updateTask -> {
-                                        if (!updateTask.isSuccessful()) {
-                                            Log.e("SubjectService", "Lỗi khi cập nhật giảng viên mới: " + updateTask.getException().getMessage());
-                                        }
-                                    });
+                        // Tìm và cập nhật Subject cũ nếu đã tồn tại, nếu không thì thêm mới
+                        boolean subjectUpdated = false;
+                        for (int i = 0; i < newTeacherClasses.size(); i++) {
+                            Subject s = newTeacherClasses.get(i);
+                            if (s.getClassId().equals(subjectId)) {
+                                newTeacherClasses.set(i, updatedSubject);
+                                subjectUpdated = true;
+                                break;
+                            }
                         }
+                        if (!subjectUpdated) {
+                            newTeacherClasses.add(updatedSubject);
+                        }
+                        newTeacher.setTeachingClasses(newTeacherClasses);
+                        db.collection("teachers").document(newTeacher.getUserID())
+                                .update("teachingClasses", newTeacherClasses)
+                                .addOnCompleteListener(updateTask -> {
+                                    if (!updateTask.isSuccessful()) {
+                                        Log.e("SubjectService", "Lỗi khi cập nhật giảng viên mới: " + updateTask.getException().getMessage());
+                                    }
+                                });
 
+                        // Xóa Subject cũ khỏi danh sách joinedClasses của oldStudents nếu sinh viên không còn trong newStudents
                         for (Student student : oldStudents) {
                             if (!newStudents.contains(student)) {
                                 List<Subject> joinedClasses = student.getJoinedClasses() != null ?
@@ -232,20 +238,31 @@ public class SubjectService {
                             }
                         }
 
+                        // Cập nhật danh sách joinedClasses của newStudents
                         for (Student student : newStudents) {
                             List<Subject> joinedClasses = student.getJoinedClasses() != null ?
                                     new ArrayList<>(student.getJoinedClasses()) : new ArrayList<>();
-                            if (!joinedClasses.contains(updatedSubject)) {
-                                joinedClasses.add(updatedSubject);
-                                student.setJoinedClasses(joinedClasses);
-                                db.collection("students").document(student.getUserID())
-                                        .update("joinedClasses", joinedClasses)
-                                        .addOnCompleteListener(updateTask -> {
-                                            if (!updateTask.isSuccessful()) {
-                                                Log.e("SubjectService", "Lỗi khi cập nhật sinh viên: " + updateTask.getException().getMessage());
-                                            }
-                                        });
+                            // Tìm và cập nhật Subject cũ nếu đã tồn tại, nếu không thì thêm mới
+                            boolean subjectFound = false;
+                            for (int i = 0; i < joinedClasses.size(); i++) {
+                                Subject s = joinedClasses.get(i);
+                                if (s.getClassId().equals(subjectId)) {
+                                    joinedClasses.set(i, updatedSubject);
+                                    subjectFound = true;
+                                    break;
+                                }
                             }
+                            if (!subjectFound) {
+                                joinedClasses.add(updatedSubject);
+                            }
+                            student.setJoinedClasses(joinedClasses);
+                            db.collection("students").document(student.getUserID())
+                                    .update("joinedClasses", joinedClasses)
+                                    .addOnCompleteListener(updateTask -> {
+                                        if (!updateTask.isSuccessful()) {
+                                            Log.e("SubjectService", "Lỗi khi cập nhật sinh viên: " + updateTask.getException().getMessage());
+                                        }
+                                    });
                         }
 
                         onSuccess.accept(null);
@@ -297,6 +314,52 @@ public class SubjectService {
                         onSuccess.accept(null);
                     } else {
                         onFailure.accept("Xóa môn học thất bại: " + task.getException().getMessage());
+                    }
+                });
+    }
+
+    public void loadSubjects(@NonNull Consumer<List<Subject>> onSuccess, @NonNull Consumer<String> onFailure) {
+        List<Subject> subjectList = new ArrayList<>();
+        db.collection("subjects")
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        for (QueryDocumentSnapshot document : task.getResult()) {
+                            Map<String, Object> data = document.getData();
+                            Subject subject = new Subject(
+                                    (String) data.get("classId"),
+                                    (String) data.get("className"),
+                                    (String) data.get("description"),
+                                    null
+                            );
+                            subjectList.add(subject);
+                        }
+                        onSuccess.accept(subjectList);
+                    } else {
+                        onFailure.accept(task.getException().getMessage());
+                    }
+                });
+    }
+
+    // Thêm phương thức loadSubjectById để tải thông tin chi tiết của một môn học
+    public void loadSubjectById(String classId, @NonNull Consumer<Subject> onSuccess, @NonNull Consumer<String> onFailure) {
+        db.collection("subjects").document(classId)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        DocumentSnapshot document = task.getResult();
+                        if (document.exists()) {
+                            Subject subject = document.toObject(Subject.class);
+                            if (subject != null) {
+                                onSuccess.accept(subject);
+                            } else {
+                                onFailure.accept("Dữ liệu môn học không hợp lệ");
+                            }
+                        } else {
+                            onFailure.accept("Môn học không tồn tại");
+                        }
+                    } else {
+                        onFailure.accept("Lỗi khi tải môn học: " + task.getException().getMessage());
                     }
                 });
     }
