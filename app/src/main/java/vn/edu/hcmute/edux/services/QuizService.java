@@ -2,16 +2,12 @@ package vn.edu.hcmute.edux.services;
 
 import android.content.Context;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
-
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-
 import vn.edu.hcmute.edux.model.Quiz;
 
 public class QuizService {

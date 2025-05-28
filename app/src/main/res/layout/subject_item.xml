@@ -60,6 +60,6 @@
             android:src="@drawable/delete"
 
 
-            />
+            android:visibility="gone" />
     </LinearLayout>
 </androidx.cardview.widget.CardView>

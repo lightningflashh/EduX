@@ -6,25 +6,19 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.firestore.FirebaseFirestore;
-
 import vn.edu.hcmute.edux.R;
+import vn.edu.hcmute.edux.controllers.admin.StudentDetailController;
 import vn.edu.hcmute.edux.model.Student;
-import vn.edu.hcmute.edux.services.StudentService;
-
 
 public class StudentDetailActivity extends AppCompatActivity {
 
     private TextInputEditText etStudentId, etFullName, etEmail, etStudentCode, etMajor;
     private Button btnSave;
     private ImageView btnBack, btnEdit;
-    private StudentService studentService;
-    private Student student;
+    private StudentDetailController controller;
     private boolean isEditMode = false;
 
     @Override
@@ -32,7 +26,11 @@ public class StudentDetailActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_student_detail);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        studentService = new StudentService();
+
+        // Khởi tạo Controller
+        controller = new StudentDetailController(this);
+
+        // Ánh xạ các view từ layout
         etStudentId = findViewById(R.id.etStudentId);
         etFullName = findViewById(R.id.etFullName);
         etEmail = findViewById(R.id.etEmail);
@@ -42,49 +40,36 @@ public class StudentDetailActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btn_Back);
         btnEdit = findViewById(R.id.btnEdit);
 
+        // Thiết lập Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         // Nhận studentId từ Intent và tải dữ liệu
         String studentId = getIntent().getStringExtra("STUDENT_ID");
         if (studentId == null) {
-            Toast.makeText(this, "Không tìm thấy sinh viên", Toast.LENGTH_SHORT).show();
+            showToast("Không tìm thấy sinh viên");
             finish();
             return;
         }
 
-        // Tải thông tin sinh viên từ Firestore
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("students").document(studentId)
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists()) {
-                        student = document.toObject(Student.class);
-                        if (student != null) {
-                            etStudentId.setText(student.getUserID());
-                            etFullName.setText(student.getFullName());
-                            etEmail.setText(student.getEmail());
-                            etStudentCode.setText(student.getStudentCode());
-                            etMajor.setText(student.getMajor());
-                        } else {
-                            Toast.makeText(this, "Dữ liệu sinh viên không hợp lệ", Toast.LENGTH_SHORT).show();
-                            finish();
-                        }
-                    } else {
-                        Toast.makeText(this, "Sinh viên không tồn tại", Toast.LENGTH_SHORT).show();
-                        finish();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Lỗi khi tải sinh viên: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    finish();
-                });
+        // Tải thông tin sinh viên từ Controller
+        controller.loadStudent(studentId);
 
+        // Xử lý nút Back
         btnBack.setOnClickListener(v -> finish());
 
+        // Xử lý nút Edit
         btnEdit.setOnClickListener(v -> toggleEditMode(true));
 
-        btnSave.setOnClickListener(v -> saveChanges());
+        // Xử lý nút Save
+        btnSave.setOnClickListener(v -> {
+            String studentIdText = etStudentId.getText().toString().trim();
+            String fullName = etFullName.getText().toString().trim();
+            String email = etEmail.getText().toString().trim();
+            String studentCode = etStudentCode.getText().toString().trim();
+            String major = etMajor.getText().toString().trim();
+            controller.saveChanges(studentIdText, fullName, email, studentCode, major);
+        });
     }
 
     private void toggleEditMode(boolean enable) {
@@ -97,32 +82,24 @@ public class StudentDetailActivity extends AppCompatActivity {
         btnEdit.setVisibility(enable ? View.GONE : View.VISIBLE);
     }
 
-    private void saveChanges() {
-        String studentId = etStudentId.getText().toString().trim();
-        String fullName = etFullName.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String studentCode = etStudentCode.getText().toString().trim();
-        String major = etMajor.getText().toString().trim();
+    // Phương thức để Controller cập nhật giao diện
+    public void displayStudent(Student student) {
+        etStudentId.setText(student.getUserID());
+        etFullName.setText(student.getFullName());
+        etEmail.setText(student.getEmail());
+        etStudentCode.setText(student.getStudentCode());
+        etMajor.setText(student.getMajor());
+    }
 
-        if (fullName.isEmpty() || email.isEmpty() || studentCode.isEmpty()) {
-            Toast.makeText(this, "Vui lòng điền đầy đủ thông tin", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    public void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
 
-        student.setFullName(fullName);
-        student.setEmail(email);
-        student.setStudentCode(studentCode);
-        student.setMajor(major);
+    public void finishActivity() {
+        finish();
+    }
 
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("students").document(studentId)
-                .set(student)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Cập nhật sinh viên thành công!", Toast.LENGTH_SHORT).show();
-                    toggleEditMode(false);
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Cập nhật thất bại: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
+    public void disableEditMode() {
+        toggleEditMode(false);
     }
 }
