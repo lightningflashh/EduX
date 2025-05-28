@@ -34,7 +34,6 @@ public class CreateNotificationActivity extends AppCompatActivity implements INo
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_notification);
-
         edtTitle = findViewById(R.id.edt_title);
         edtContent = findViewById(R.id.edt_content);
         spinnerSubjects = findViewById(R.id.spinner_subjects);

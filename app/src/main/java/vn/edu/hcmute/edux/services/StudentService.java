@@ -388,4 +388,11 @@ public class StudentService {
                     }
                 });
     }
+    // Thêm phương thức updateStudent để cập nhật thông tin sinh viên
+    public void updateStudent(String studentId, Student student, Consumer<Void> onSuccess, Consumer<String> onFailure) {
+        db.collection("students").document(studentId)
+                .set(student)
+                .addOnSuccessListener(aVoid -> onSuccess.accept(null))
+                .addOnFailureListener(e -> onFailure.accept(e.getMessage()));
+    }
 }
